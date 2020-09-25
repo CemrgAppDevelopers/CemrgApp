@@ -361,24 +361,3 @@ void relabel(ImageType::Pointer & imageToRelabel, ImageType::Pointer imageFragme
         ++condIter;
     }
 }
-
-// ResampleImageFilterType::Pointer & imresize(ImageType::Pointer imToResize, ImageType::Pointer imTarget){
-//     ResampleImageFilterType::Pointer resampler = ResampleImageFilterType::New();
-//     NNInterpolatorType::Pointer nninterp = NNInterpolatorType::New();
-//
-//     resampler->SetInput(imToResize);
-//     resampler->SetInterpolator(nninterp);
-//     resampler->SetOutputOrigin(imTarget->GetOrigin());
-//     ImageType::SizeType input_size = imTarget->GetLargestPossibleRegion().GetSize();
-//     ImageType::SpacingType input_spacing = imTarget->GetSpacing();
-//
-//     resampler->SetSize(input_size);
-//     resampler->SetOutputSpacing(input_spacing);
-//     resampler->SetOutputDirection(imTarget->GetDirection());
-//     resampler->UpdateLargestPossibleRegion();
-//
-//     if(debug){
-//         QString step1 = debugPrefix + "S1_resizedBloodPool.nii";
-//         mitk::IOUtil::Save(mitk::ImportItkImage(resampler->GetOutput()), step1.toStdString());
-//     }
-// }
