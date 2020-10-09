@@ -118,8 +118,9 @@ int main(int argc, char* argv[]) {
     // This method returns a mapping of long argument names to their values.
     auto parsedArgs = parser.parseArguments(argc, argv);
 
-    if (parsedArgs.empty())
+    if (parsedArgs.empty()){
         return EXIT_FAILURE;
+    }
 
     if (parsedArgs["mesh"].Empty()) {
         MITK_INFO << parser.helpText();
@@ -194,13 +195,13 @@ int main(int argc, char* argv[]) {
         QString outputBase = path2files + basename + "_";
 
         QStringList outputFiles;
-        outputFiles << (outputBase+"LVendo.surf");
-        outputFiles << (outputBase+"LVepi.surf");
-        outputFiles << (outputBase+"LVbase.surf");
-        outputFiles << (outputBase+"RVendo.surf");
-        outputFiles << (outputBase+"RVepi.surf");
-        outputFiles << (outputBase+"RVbase.surf");
-        outputFiles << (outputBase+"Apex.surf");
+        outputFiles << (outputBase+"LVendo.surf.vtx");
+        outputFiles << (outputBase+"LVepi.surf.vtx");
+        outputFiles << (outputBase+"LVbase.surf.vtx");
+        outputFiles << (outputBase+"RVendo.surf.vtx");
+        outputFiles << (outputBase+"RVepi.surf.vtx");
+        outputFiles << (outputBase+"RVbase.surf.vtx");
+        outputFiles << (outputBase+"apex.surf.vtx");
 
         std::ifstream elemFileRead, ptsFileRead;
         std::ofstream outputFileWrite;
@@ -306,7 +307,7 @@ int main(int argc, char* argv[]) {
 
 
 
-        MITK_INFO(verbose) << "[Step4] Saving to corresponding .surf files";
+        MITK_INFO(verbose) << "[Step4] Saving to corresponding .surf.vtx files";
         for(int ix=0; ix<outputFiles.size();ix++){
             int currentLabel = labelsToFile.at(ix);
             if(currentLabel==lvepi){

@@ -6,6 +6,7 @@ option(BUILD_CEMRG_IM2INR "Build image to inr command line app. " ON)
 option(BUILD_CEMRG_VENTRICLE_SEGMENTATION_RELABEL "Build ventricle segmentation relabelling command line app" ON)
 option(BUILD_CEMRG_CARP_UTILS "Build CemrgApp+Carp utils command line app" ON)
 option(BUILD_CEMRG_LABELS_TO_SURF "Build CemrgApp extract surface from labels utils command line app" ON)
+option(BUILD_DEFINE_FIBRES "Build CemrgApp define fibres algorithm" ON)
 
 if(BUILD_CemrgCMDApps)
   mitkFunctionCreateCommandLineApp(
@@ -68,5 +69,13 @@ if(BUILD_CEMRG_LABELS_TO_SURF)
         NAME CemrgVtx2Surf
         DEPENDS MitkCemrgAppModule
         CPP_FILES CemrgVtxToSurf.cpp
+    )
+endif()
+
+if(BUILD_DEFINE_FIBRES)
+    mitkFunctionCreateCommandLineApp(
+        NAME CemrgFibres
+        DEPENDS MitkCemrgAppModule
+        CPP_FILES CemrgDefineFibres.cpp
     )
 endif()
