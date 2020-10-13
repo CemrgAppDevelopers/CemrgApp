@@ -251,24 +251,26 @@ bool originalCoordinates(QString imagePath, QString pointPath, QString outputPat
     if(QFileInfo::exists(imagePath) && QFileInfo::exists(pointPath)){
         mitk::Image::Pointer image = mitk::IOUtil::Load<mitk::Image>(imagePath.toStdString());
         ImageType::Pointer itkInput = ImageType::New();
+        ImageType::PointType origin;
         mitk::CastToItkImage(image, itkInput);
+        origin = image->GetOrigin();
         bool outputToConsole = outputPath.isEmpty();
 
-        MITK_INFO(v) << "Reorienting image to RAI";
-        typedef itk::OrientImageFilter<ImageType,ImageType> OrientImageFilterType;
-        OrientImageFilterType::Pointer orienter = OrientImageFilterType::New();
-        orienter->UseImageDirectionOn();
-        orienter->SetDesiredCoordinateOrientationToAxial(); // RAI
-        orienter->SetInput(itkInput);
-        orienter->Update();
-
-        ImageType::SpacingType spacing = orienter->GetOutput()->GetSpacing();
-        ImageType::DirectionType transMat = orienter->GetOutput()->GetDirection();
-        ImageType::PointType origin = orienter->GetOutput()->GetOrigin();
+        // MITK_INFO(v) << "Reorienting image to RAI";
+        // typedef itk::OrientImageFilter<ImageType,ImageType> OrientImageFilterType;
+        // OrientImageFilterType::Pointer orienter = OrientImageFilterType::New();
+        // orienter->UseImageDirectionOn();
+        // orienter->SetDesiredCoordinateOrientationToAxial(); // RAI
+        // orienter->SetInput(itkInput);
+        // orienter->Update();
+        //
+        // ImageType::SpacingType spacing = orienter->GetOutput()->GetSpacing();
+        // ImageType::DirectionType transMat = orienter->GetOutput()->GetDirection();
+        // ImageType::PointType origin = orienter->GetOutput()->GetOrigin();
 
         // std::cout << "ORIGIN: " << origin << '\n';
         // std::cout << "DIRECTION: " << transMat << '\n';
-        std::cerr << "SPACING: " << spacing << '\n';
+        // std::cerr << "SPACING: " << spacing << '\n';
 
         // origin[0] = -1.0*origin[0];
         // origin[1] = -1.0*origin[1];
@@ -281,6 +283,9 @@ bool originalCoordinates(QString imagePath, QString pointPath, QString outputPat
         int nPts;
         pointFileRead.open(pointPath.toStdString());
         pointFileRead >> nPts;
+        
+        double x,y,z;
+        double scaling = 1000;
 
         std::ofstream outputFileWrite;
         if(!outputToConsole){
@@ -290,25 +295,38 @@ bool originalCoordinates(QString imagePath, QString pointPath, QString outputPat
             std::cout << nPts << std::endl;
         }
 
-        std::vector<double> pointsVector(nPts*3, 0.0);
-        std::vector<double> onePt(3,0.0);
+        // std::vector<double> pointsVector(nPts*3, 0.0);
+        // std::vector<double> onePt(3,0.0);
 
         double xt=0.0, yt=0.0, zt=0.0;
         for(int iPt=0; iPt < nPts; iPt++){
-            for(int ix=0; ix<3; ix++){
-                // pointFileRead >> pointsVector[iPt + ix*nPts];
-                pointFileRead >> onePt[ix];
-                onePt[ix] /= 1000;
+            pointFileRead >> x;
+            pointFileRead >> y;
+            pointFileRead >> z;
+            if (pointFileRead.eof()) {
+                cerr << " WARNING!: File ended prematurely " << endl;
+                break;
             }
-            xt = transMat[0][0] * onePt[0] + transMat[0][1] * onePt[1] + transMat[0][2] * onePt[2] + origin[0];
-            yt = transMat[1][0] * onePt[0] + transMat[1][1] * onePt[1] + transMat[1][2] * onePt[2] + origin[1];
-            zt = transMat[2][0] * onePt[0] + transMat[2][1] * onePt[1] + transMat[2][2] * onePt[2] + origin[2];
 
-            xt *= 1000;
-            yt *= 1000;
-            zt *= 1000;
+            xt = x+(origin[0]*scaling);
+            yt = y+(origin[1]*scaling);
+            zt = z+(origin[2]*scaling);
 
-            onePt.clear();
+            // for(int ix=0; ix<3; ix++){
+                // pointFileRead >> pointsVector[iPt + ix*nPts];
+                // pointFileRead >> onePt[ix];
+                // onePt[ix] /= 1000;
+            // }
+            // xt = transMat[0][0] * onePt[0] + transMat[0][1] * onePt[1] + transMat[0][2] * onePt[2] + origin[0];
+            // yt = transMat[1][0] * onePt[0] + transMat[1][1] * onePt[1] + transMat[1][2] * onePt[2] + origin[1];
+            // zt = transMat[2][0] * onePt[0] + transMat[2][1] * onePt[1] + transMat[2][2] * onePt[2] + origin[2];
+            //
+            // xt *= 1000;
+            // yt *= 1000;
+            // zt *= 1000;
+
+
+            // onePt.clear();
 
             if(!outputToConsole){
                 outputFileWrite << std::fixed << xt << " ";
