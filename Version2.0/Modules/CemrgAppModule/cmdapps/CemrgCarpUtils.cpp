@@ -77,6 +77,85 @@ typedef itk::Image<uint8_t,3> ImageType;
 typedef itk::Index<3> IndexType;
 typedef itk::ImageRegionIterator<ImageType> IteratorType;
 
+class ScarImage{
+  protected:
+    ImageType::Pointer image;
+    ImageType::RegionType region;
+
+    double transMat[4][4];
+
+  public:
+    ScarImage(char *filename) {
+        ReaderType::Pointer reader = ReaderType::New();
+        reader->SetFileName(filename);
+        reader->Update();
+        image = reader->GetOutput();
+        spacing = image->GetSpacing();
+        origin=image->GetOrigin();
+        region = image->GetLargestPossibleRegion();
+        size = region.GetSize();
+        cerr << "Size of image is:" << size << endl;
+        max_i = size[0]-1;
+        max_j = size[1]-1;
+        max_k = size[2]-1;
+        min_i = 0;
+        min_j = 0;
+        min_k = 0;
+        //transMat = new double *[4];
+        for (int i=0; i<4; i++) {
+            //transMat[i]=new double [4];
+            for (int j=0; j<4; j++) {
+                if (i==j) {
+                    transMat[i][j]=1.0;
+                } else {
+                    transMat[i][j]=0.0;
+                }
+            }
+        }
+    }
+    int data(int i, int j, int k) {
+        IndexType index = {{i, j, k}};
+        return image->GetPixel(index);
+    }
+
+    int inScar(double x, double y, double z) {
+        double xt, yt, zt;
+        xt = transMat[0][0] * x + transMat[0][1] * y + transMat[0][2] * z + transMat[0][3]- origin[0] + spacing[0]/2;
+        yt = transMat[1][0] * x + transMat[1][1] * y + transMat[1][2] * z + transMat[1][3]- origin[1] + spacing[0]/2;
+        zt = transMat[2][0] * x + transMat[2][1] * y + transMat[2][2] * z + transMat[2][3]- origin[2] + spacing[0]/2;
+
+        int i,j,k;
+        i = static_cast<int>(xt/spacing[0]);
+        j = static_cast<int>(yt/spacing[1]);
+        k = static_cast<int>(zt/spacing[2]);
+
+        if ( i<0 || j<0 || k<0 ) {
+            // save the min (i,j,k) if any are less than zero
+            using std::min;
+            min_i = min(i, min_i);
+            min_j = min(j, min_j);
+            min_k = min(k, min_k);
+            return 0;
+        }
+        else if ( i > size[0]-1 || j > size[1]-1 || k > size[2]-1 ) {
+            using std::max;
+            max_i = max(i, max_i);
+            max_j = max(j, max_j);
+            max_k = max(k, max_k);
+            return 0;
+
+        } else {
+            return data(i,j,k);
+        }
+
+    }
+    void setTransformation( double **matrix ) {
+        for (int i=0; i<4; i++)
+            for (int j=0; j<4; j++)
+                transMat[i][j] = matrix[i][j];
+    }
+};
+
 int checkAlgorithm(std::string algo);
 bool checkAlgorithmParameters(int algorithmNumber, std::string inImage, std::string inPts, std::string inElem, std::string inBp);
 
@@ -256,34 +335,12 @@ bool originalCoordinates(QString imagePath, QString pointPath, QString outputPat
         origin = image->GetOrigin();
         bool outputToConsole = outputPath.isEmpty();
 
-        // MITK_INFO(v) << "Reorienting image to RAI";
-        // typedef itk::OrientImageFilter<ImageType,ImageType> OrientImageFilterType;
-        // OrientImageFilterType::Pointer orienter = OrientImageFilterType::New();
-        // orienter->UseImageDirectionOn();
-        // orienter->SetDesiredCoordinateOrientationToAxial(); // RAI
-        // orienter->SetInput(itkInput);
-        // orienter->Update();
-        //
-        // ImageType::SpacingType spacing = orienter->GetOutput()->GetSpacing();
-        // ImageType::DirectionType transMat = orienter->GetOutput()->GetDirection();
-        // ImageType::PointType origin = orienter->GetOutput()->GetOrigin();
-
-        // std::cout << "ORIGIN: " << origin << '\n';
-        // std::cout << "DIRECTION: " << transMat << '\n';
-        // std::cerr << "SPACING: " << spacing << '\n';
-
-        // origin[0] = -1.0*origin[0];
-        // origin[1] = -1.0*origin[1];
-        //
-        // transMat[0][0] = -1.0*transMat[0][0];
-        // transMat[1][1] = -1.0*transMat[1][1];
-
         std::ifstream pointFileRead;
 
         int nPts;
         pointFileRead.open(pointPath.toStdString());
         pointFileRead >> nPts;
-        
+
         double x,y,z;
         double scaling = 1000;
 
@@ -294,9 +351,6 @@ bool originalCoordinates(QString imagePath, QString pointPath, QString outputPat
         } else{
             std::cout << nPts << std::endl;
         }
-
-        // std::vector<double> pointsVector(nPts*3, 0.0);
-        // std::vector<double> onePt(3,0.0);
 
         double xt=0.0, yt=0.0, zt=0.0;
         for(int iPt=0; iPt < nPts; iPt++){
@@ -311,22 +365,6 @@ bool originalCoordinates(QString imagePath, QString pointPath, QString outputPat
             xt = x+(origin[0]*scaling);
             yt = y+(origin[1]*scaling);
             zt = z+(origin[2]*scaling);
-
-            // for(int ix=0; ix<3; ix++){
-                // pointFileRead >> pointsVector[iPt + ix*nPts];
-                // pointFileRead >> onePt[ix];
-                // onePt[ix] /= 1000;
-            // }
-            // xt = transMat[0][0] * onePt[0] + transMat[0][1] * onePt[1] + transMat[0][2] * onePt[2] + origin[0];
-            // yt = transMat[1][0] * onePt[0] + transMat[1][1] * onePt[1] + transMat[1][2] * onePt[2] + origin[1];
-            // zt = transMat[2][0] * onePt[0] + transMat[2][1] * onePt[1] + transMat[2][2] * onePt[2] + origin[2];
-            //
-            // xt *= 1000;
-            // yt *= 1000;
-            // zt *= 1000;
-
-
-            // onePt.clear();
 
             if(!outputToConsole){
                 outputFileWrite << std::fixed << xt << " ";
@@ -358,13 +396,20 @@ bool calculateCentreOfGravity(QString pointPath, QString elemPath, QString outpu
         pointFileRead.open(pointPath.toStdString());
         pointFileRead >> nPts;
 
-        std::vector<double> pointsVector(nPts*3, 0.0);
-        for(int iPt=0; iPt < nPts; iPt++){
-            for(int ix=0; ix<3; ix++){
-                pointFileRead >> pointsVector[iPt + ix*nPts];
-            }
-        }
-        pointFileRead.close();
+        double* pts_array = (double*)malloc(nPts * 3 * sizeof(double));
+    	if (pts_array == NULL) {
+    		puts("pts_array malloc FAIL\n");
+    		return false;
+    	}
+
+        fputs("Beginning input .pts file\n", stderr);
+    	for (int i = 0; i < pts_n; i++) {
+    		double* loc = pts_array + 3*i;
+    		fscanf(pts_fp, "%lf %lf %lf\n", loc, loc + 1, loc + 2);
+    	}
+    	fputs("Completed input .pts file\n", stderr);
+
+    	fclose(pts_fp);
 
         elemFileRead.open(elemPath.toStdString());
         elemFileRead >> nElem;
@@ -377,38 +422,52 @@ bool calculateCentreOfGravity(QString pointPath, QString elemPath, QString outpu
             std::cout << nElem <<" 3"<< std::endl;
         }
 
-        std::string type;
-        for(int iElem=0; iElem < nElem; iElem++){
-            int p[4], region;
-            double x=0.0, y=0.0, z=0.0;
+        fputs("Beginning input .elem file, simultaneous output\n", stderr);
+    	for (int i = 0; i < nElem; i++) {
+    // 		int* loc = elem_array + 4*i;
+    		int p1, p2, p3, p4, region;
+    		fscanf(elemFileRead, "Tt %d %d %d %d %d\n", &p1, &p2, &p3, &p4, &region);
 
-            elemFileRead >> type;
-            elemFileRead >> p[0];
-            elemFileRead >> p[1];
-            elemFileRead >> p[2];
-            elemFileRead >> p[3];
-            elemFileRead >> region;
+    		// Calculate and output cog
+    		double x = 0.0, y = 0.0, z = 0.0;
 
-            for(int ix=0; ix<4; ix++){
-                x += pointsVector.at(p[ix]+0);
-                y += pointsVector.at(p[ix]+1);
-                z += pointsVector.at(p[ix]+2);
-            }
+    		double *loc = pts_array + 3*p1;
+    		x += loc[0];
+    		y += loc[1];
+    		z += loc[2];
 
-            x /= 4.0 *1000;
-            y /= 4.0 *1000;
-            z /= 4.0 *1000;
+    		loc = pts_array + 3*p2;
+    		x += loc[0];
+    		y += loc[1];
+    		z += loc[2];
+
+    		loc = pts_array + 3*p3;
+    		x += loc[0];
+    		y += loc[1];
+    		z += loc[2];
+
+    		loc = pts_array + 3*p4;
+    		x += loc[0];
+    		y += loc[1];
+    		z += loc[2];
+
+    		x /= 4.0 * 1000;
+    		y /= 4.0 * 1000;
+    		z /= 4.0 * 1000;
 
             if(!outputToConsole){
-                outputFileWrite << std::fixed << x << std::endl;
-                outputFileWrite << std::fixed << y << std::endl;
-                outputFileWrite << std::fixed << z << std::endl;
+                outputFileWrite.open(outputPath.toStdString());
+                outputFileWrite << x << std::endl;
+                outputFileWrite << y << std::endl;
+                outputFileWrite << z << std::endl;
             } else{
-                std::cout << std::fixed << x << std::endl;
-                std::cout << std::fixed << y << std::endl;
-                std::cout << std::fixed << z << std::endl;
+                // std::cout << nElem <<" 3"<< std::endl;
+                printf("%lf\n%lf\n%lf\n", x, y, z);
             }
-        }
+    	}
+    	fputs("Completed input .elem file\n", stderr);
+
+    	fclose(elemFileRead);
 
         if(!outputToConsole){
             outputFileWrite.close();
@@ -425,26 +484,91 @@ bool calculateCentreOfGravity(QString pointPath, QString elemPath, QString outpu
     return success;
 
 }
+// bool calculateCentreOfGravity(QString pointPath, QString elemPath, QString outputPath, bool v){
+//     bool success = false;
+//     if(QFileInfo::exists(elemPath) && QFileInfo::exists(pointPath)){
+//         std::ifstream pointFileRead;
+//         std::ifstream elemFileRead;
+//         int nPts, nElem;
+//         bool outputToConsole = outputPath.isEmpty();
+//
+//         pointFileRead.open(pointPath.toStdString());
+//         pointFileRead >> nPts;
+//
+//         std::vector<double> pointsVector(nPts*3, 0.0);
+//         for(int iPt=0; iPt < nPts; iPt++){
+//             for(int ix=0; ix<3; ix++){
+//                 pointFileRead >> pointsVector[iPt + ix*nPts];
+//             }
+//         }
+//         pointFileRead.close();
+//
+//         elemFileRead.open(elemPath.toStdString());
+//         elemFileRead >> nElem;
+//
+//         std::ofstream outputFileWrite;
+//         if(!outputToConsole){
+//             outputFileWrite.open(outputPath.toStdString());
+//             outputFileWrite << nElem << " 3"<< std::endl;
+//         } else{
+//             std::cout << nElem <<" 3"<< std::endl;
+//         }
+//
+//         std::string type;
+//         for(int iElem=0; iElem < nElem; iElem++){
+//             int p[4], region;
+//             double x=0.0, y=0.0, z=0.0;
+//
+//             elemFileRead >> type;
+//             elemFileRead >> p[0];
+//             elemFileRead >> p[1];
+//             elemFileRead >> p[2];
+//             elemFileRead >> p[3];
+//             elemFileRead >> region;
+//
+//             for(int ix=0; ix<4; ix++){
+//                 x += pointsVector.at(p[ix]+0);
+//                 y += pointsVector.at(p[ix]+1);
+//                 z += pointsVector.at(p[ix]+2);
+//             }
+//
+//             x /= 4.0 *1000;
+//             y /= 4.0 *1000;
+//             z /= 4.0 *1000;
+//
+//             if(!outputToConsole){
+//                 outputFileWrite << std::fixed << x << std::endl;
+//                 outputFileWrite << std::fixed << y << std::endl;
+//                 outputFileWrite << std::fixed << z << std::endl;
+//             } else{
+//                 std::cout << std::fixed << x << std::endl;
+//                 std::cout << std::fixed << y << std::endl;
+//                 std::cout << std::fixed << z << std::endl;
+//             }
+//         }
+//
+//         if(!outputToConsole){
+//             outputFileWrite.close();
+//         }
+//         success = true;
+//         MITK_INFO(v) << "Completed input .elem file";
+//
+//
+//     } else{
+//         MITK_ERROR(QFileInfo::exists(elemPath)) << ("Could not read file" + elemPath).toStdString();
+//         MITK_ERROR(QFileInfo::exists(pointPath)) << ("Could not read file" + pointPath).toStdString();
+//     }
+//
+//     return success;
+//
+// }
 
 bool regionMapping(QString bpPath, QString pointPath, QString elemPath, QString outputPath, bool v){
     bool success = false;
     if(QFileInfo::exists(bpPath) && QFileInfo::exists(pointPath) && QFileInfo::exists(elemPath)){
-        mitk::Image::Pointer image = mitk::IOUtil::Load<mitk::Image>(bpPath.toStdString());
-        ImageType::Pointer itkInput = ImageType::New();
-        mitk::CastToItkImage(image, itkInput);
-        bool outputToConsole = outputPath.isEmpty();
-
-        ImageType::SpacingType spacing = itkInput->GetSpacing();
-        ImageType::RegionType imageRegion = itkInput->GetLargestPossibleRegion();
-        ImageType::SizeType size = imageRegion.GetSize();
-        int minIx, minJx, minKx, maxIx, maxJx, maxKx;
-        minIx=0; minJx=0; minKx=0;
-        maxIx=size[0]-1;
-        maxJx=size[1]-1;
-        maxKx=size[2]-1;
+        ScarImage image(bpPath.toStdString().c_str());
 
         std::ofstream outputFileWrite;
-
         std::ifstream cogFileRead, elemFileRead;
         cogFileRead.open(pointPath.toStdString());
 
@@ -473,8 +597,8 @@ bool regionMapping(QString bpPath, QString pointPath, QString elemPath, QString 
         }
 
         count = 0;
-        std::string type;
-        int p[4], region, newRegion;
+        char type[2];
+        int nodes[4], region, newRegion;
         int newRegionCount = 0;
 
         for(int iElem=0; iElem < nElemCOG; iElem++){
@@ -487,27 +611,26 @@ bool regionMapping(QString bpPath, QString pointPath, QString elemPath, QString 
             }
 
             elemFileRead >> type;
-            elemFileRead >> p[0];
-            elemFileRead >> p[1];
-            elemFileRead >> p[2];
-            elemFileRead >> p[3];
+            elemFileRead >> nodes[0];
+            elemFileRead >> nodes[1];
+            elemFileRead >> nodes[2];
+            elemFileRead >> nodes[3];
             elemFileRead >> region;
 
-            newRegion = inRegion(itkInput, x, y, z);
-            if(newRegion > 0 ){
-                region = newRegion;
+            if(image.inScar(x, y, z) ){
+                region = image.inScar(x, y, z);
                 newRegionCount++;
             }
 
             if(!outputToConsole){
                 outputFileWrite << type << " ";
-                outputFileWrite << p[0] << " ";
-                outputFileWrite << p[1] << " ";
-                outputFileWrite << p[2] << " ";
-                outputFileWrite << p[3] << " ";
+                outputFileWrite << nodes[0] << " ";
+                outputFileWrite << nodes[1] << " ";
+                outputFileWrite << nodes[2] << " ";
+                outputFileWrite << nodes[3] << " ";
                 outputFileWrite << region << std::endl;
             } else{
-                std::cout << type << " " << p[0] << " " << p[1] << " " << p[2] << " " << p[3] << " " << region << std::endl;
+                std::cout << type << " " << nodes[0] << " " << nodes[1] << " " << nodes[2] << " " << nodes[3] << " " << region << std::endl;
             }
             count++;
         }
@@ -543,6 +666,123 @@ bool regionMapping(QString bpPath, QString pointPath, QString elemPath, QString 
 
     return success;
 }
+
+// bool regionMapping(QString bpPath, QString pointPath, QString elemPath, QString outputPath, bool v){
+//     bool success = false;
+//     if(QFileInfo::exists(bpPath) && QFileInfo::exists(pointPath) && QFileInfo::exists(elemPath)){
+//         mitk::Image::Pointer image = mitk::IOUtil::Load<mitk::Image>(bpPath.toStdString());
+//         ImageType::Pointer itkInput = ImageType::New();
+//         mitk::CastToItkImage(image, itkInput);
+//         bool outputToConsole = outputPath.isEmpty();
+//
+//         ImageType::SpacingType spacing = itkInput->GetSpacing();
+//         ImageType::RegionType imageRegion = itkInput->GetLargestPossibleRegion();
+//         ImageType::SizeType size = imageRegion.GetSize();
+//         int minIx, minJx, minKx, maxIx, maxJx, maxKx;
+//         minIx=0; minJx=0; minKx=0;
+//         maxIx=size[0]-1;
+//         maxJx=size[1]-1;
+//         maxKx=size[2]-1;
+//
+//         std::ofstream outputFileWrite;
+//
+//         std::ifstream cogFileRead, elemFileRead;
+//         cogFileRead.open(pointPath.toStdString());
+//
+//         int nElemCOG, dim, count;
+//         double x, y, z;
+//
+//         cogFileRead >> nElemCOG;
+//         cogFileRead >> dim;
+//
+//         if(!outputToConsole){
+//             outputFileWrite.open(outputPath.toStdString());
+//             outputFileWrite << nElemCOG << std::endl;
+//         } else{
+//             std::cout << nElemCOG << std::endl;
+//         }
+//
+//         MITK_INFO(v) << ("Number of elements (COG file):" + QString::number(nElemCOG)).toStdString();
+//         MITK_INFO(v) << ("Dimension= " + QString::number(dim)).toStdString();
+//
+//         elemFileRead.open(elemPath.toStdString());
+//         int nElem;
+//
+//         elemFileRead >> nElem;
+//         if(nElem != nElemCOG){
+//             MITK_ERROR << "Number of elements in files are not consistent.";
+//         }
+//
+//         count = 0;
+//         std::string type;
+//         int p[4], region, newRegion;
+//         int newRegionCount = 0;
+//
+//         for(int iElem=0; iElem < nElemCOG; iElem++){
+//             cogFileRead >> x;
+//             cogFileRead >> y;
+//             cogFileRead >> z;
+//             if(cogFileRead.eof()){
+//                 MITK_WARN << "File ended prematurely";
+//                 break;
+//             }
+//
+//             elemFileRead >> type;
+//             elemFileRead >> p[0];
+//             elemFileRead >> p[1];
+//             elemFileRead >> p[2];
+//             elemFileRead >> p[3];
+//             elemFileRead >> region;
+//
+//             if(inRegion(itkInput, x, y, z) ){
+//                 region = inRegion(itkInput, x, y, z);
+//                 newRegionCount++;
+//             }
+//
+//             if(!outputToConsole){
+//                 outputFileWrite << type << " ";
+//                 outputFileWrite << p[0] << " ";
+//                 outputFileWrite << p[1] << " ";
+//                 outputFileWrite << p[2] << " ";
+//                 outputFileWrite << p[3] << " ";
+//                 outputFileWrite << region << std::endl;
+//             } else{
+//                 std::cout << type << " " << p[0] << " " << p[1] << " " << p[2] << " " << p[3] << " " << region << std::endl;
+//             }
+//             count++;
+//         }
+//
+//         if(!outputToConsole){
+//             outputFileWrite.close();
+//         }
+//         success = true;
+//
+//         MITK_INFO << ("Number of element COG read: " + QString::number(count)).toStdString();
+//         MITK_INFO << ("Number of new regions determined: " + QString::number(newRegionCount)).toStdString();
+//
+//         if ( minIx < 0 || minJx < 0 || minKx < 0 ) {
+//             MITK_WARN << "WARNING: The elemCOG file falls outside the image bounds! Code assumes that no scar lies in this region.";
+//             MITK_WARN << "If scar does lie in this region, then you need to pad the image at the start by (in pixel space):";
+//             MITK_WARN << (QString::number(-minIx) + " " + QString::number(-minJx) + " " + QString::number(-minKx)).toStdString();
+//             MITK_WARN << "And add the following transformation to the TransMatFile (in geometric space):";
+//             MITK_WARN << (QString::number(-minIx*spacing[0]) + " " + QString::number(-minJx*spacing[1]) + " " + QString::number(-minKx*spacing[2])).toStdString();
+//             success=false;
+//         }
+//         if ( maxIx > int(size[0]-1) || maxJx > int(size[1]-1) || maxKx > int(size[2]-1) ) {
+//             MITK_WARN << "WARNING: The elemCOG file falls outside the image bounds! Code assumes that no scar lies in this region.";
+//             MITK_WARN << "If scar does lie in this region, then you need to pad the image at the end by (in pixel space):";
+//             MITK_WARN << (QString::number(maxIx-(size[0]-1)) + " " + QString::number(maxJx-(size[1]-1)) + " " + QString::number(maxKx-(size[2]-1))).toStdString();
+//             MITK_WARN << "No need to change TransMatFile";
+//             success=false;
+//         }
+//
+//     } else{
+//         MITK_ERROR(QFileInfo::exists(bpPath)) << ("File does not exist: " + bpPath).toStdString();
+//         MITK_ERROR(QFileInfo::exists(pointPath)) << ("File does not exist: " + pointPath).toStdString();
+//     }
+//
+//     return success;
+// }
 
 // helper functions
 int inRegion(ImageType::Pointer image, double x, double y, double z){
