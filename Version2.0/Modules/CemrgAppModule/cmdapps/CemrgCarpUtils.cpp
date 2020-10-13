@@ -268,7 +268,7 @@ bool originalCoordinates(QString imagePath, QString pointPath, QString outputPat
 
         // std::cout << "ORIGIN: " << origin << '\n';
         // std::cout << "DIRECTION: " << transMat << '\n';
-        // std::cout << "SPACING: " << spacing << '\n';
+        std::cerr << "SPACING: " << spacing << '\n';
 
         // origin[0] = -1.0*origin[0];
         // origin[1] = -1.0*origin[1];

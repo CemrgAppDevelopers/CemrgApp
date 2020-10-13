@@ -230,6 +230,7 @@ int main(int argc, char* argv[]) {
         double beta_endo = QString::fromStdString(beta_endo_str).toDouble();
         int iterations = QString::fromStdString(iterations_str).toInt();
         int frequency = QString::fromStdString(frequency_str).toInt();
+	std::cout << "freq:" << frequency << std::endl;
 
         QFileInfo fi(QString::fromStdString(meshfile));
         QString path2files = fi.absolutePath() + mitk::IOUtil::GetDirectorySeparator();
