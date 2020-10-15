@@ -1069,6 +1069,113 @@ QString CemrgCommandLine::DockerDicom2Nifti(QString path2dicomfolder){
     return outAbsolutePath;
 }
 
+QString CemrgCommandLine::DockerSurfaceFromMesh(QString dir, QString meshname, QString op, QString outputSuffix){
+    // Method equivalent to:  meshtool extract surface
+    SetDockerImage("alonsojasl/cemrg-meshtool:v1.0");
+    QString executablePath = "";
+#if defined(__APPLE__)
+        executablePath = "/usr/local/bin/";
+#endif
+    QString executableName = executablePath+"docker";
+    QString outAbsolutePath = "ERROR_IN_PROCESSING";
+
+    QDir home(dir);
+
+    QString outname = meshname+"_"+outputSuffix;
+    QStringList arguments = GetDockerArguments(home.absolutePath());
+    arguments << "extract" << "surface";
+    arguments << ("-msh="+meshname);
+    arguments << ("-op="+op);
+    arguments << ("-surf="+outname);
+
+    QString outPath = home.absolutePath() + mitk::IOUtil::GetDirectorySeparator() + outname + ".surf.vtx";
+
+    bool successful = ExecuteCommand(executableName, arguments, outPath);
+
+    if (successful) {
+        MITK_INFO << "Surface extraction successful.";
+        outAbsolutePath = outPath;
+    } else{
+        MITK_WARN << "Error with MESHTOOL Docker container.";
+    }
+    return outAbsolutePath;
+
+}
+
+QString CemrgCommandLine::DockerComputeFibres(QString dir, QString meshname, QString lapapex, QString lapepi, QString laplv, QString laprv, QString type, double a_endo, double a_epi, double b_endo, double b_epi){
+    SetDockerImage("alonsojasl/cemrg-fibres:v1.0");
+    QString executablePath = "";
+
+#if defined(__APPLE__)
+        executablePath = "/usr/local/bin/";
+#endif
+    QString executableName = executablePath+"docker";
+    QString outAbsolutePath = "ERROR_IN_PROCESSING";
+
+    QDir home(dir);
+
+    QString outPath = home.absolutePath() + mitk::IOUtil::GetDirectorySeparator() + meshname+"_fibres.lon";
+    QStringList arguments = GetDockerArguments(home.absolutePath());
+    arguments << "-m" << meshname;
+    arguments << "--type" << type;
+    arguments << "-a" << home.relativeFilePath(lapapex);
+    arguments << "-e" << home.relativeFilePath(lapepi);
+    arguments << "-l" << home.relativeFilePath(laplv);
+    arguments << "-r" << home.relativeFilePath(laprv);
+    arguments << "--alpha_endo" << QString::number(a_endo);
+    arguments << "--alpha_epi" << QString::number(a_epi);
+    arguments << "--beta_endo" << QString::number(b_endo);
+    arguments << "--beta_epi" << QString::number(b_epi);
+    arguments << "-o" << meshname+"_fibres.lon";
+
+    bool successful = ExecuteCommand(executableName, arguments, outPath);
+
+    if (successful) {
+        MITK_INFO << "Fibres generation successful.";
+        outAbsolutePath = outPath;
+    } else{
+        MITK_WARN << "Error with FIBRES Docker container.";
+    }
+    return outAbsolutePath;
+}
+
+QString CemrgCommandLine::DockerLaplaceSolves(QString dir, QString outputName, QString paramsFullPath, bool optCarp, bool optVtk){
+    SetDockerImage("alonsojasl/meshtool3d-lapsolves:v1.0");
+    QString executablePath = "";
+#if defined(__APPLE__)
+        executablePath = "/usr/local/bin/";
+#endif
+    QString executableName = executablePath+"docker";
+    QString outAbsolutePath = "ERROR_IN_PROCESSING";
+
+    QDir home(dir);
+
+    QString outname = outputName + "_lap_apex_potential.dat";
+    // if _lap_apex.dat is generated, we assume _lap_epi, _lap_lv , and _lap_rv are too.
+    QStringList arguments = GetDockerArguments(home.absolutePath());
+    arguments << "-f" << home.relativeFilePath(paramsFullPath);
+    arguments << "-out_dir" << home.relativeFilePath(dir);
+    arguments << "-out_name" << outputName;
+    if(optCarp){
+        arguments << "-carp"; // to read meshtool generated surfaces (default=true)
+    }
+    if(!optVtk){
+        arguments << "-novtk"; // allows creation of output VTK file with laplace solves
+    }
+
+    QString outPath = home.absolutePath() + mitk::IOUtil::GetDirectorySeparator() + outname;
+
+    bool successful = ExecuteCommand(executableName, arguments, outPath);
+
+    if (successful) {
+        MITK_INFO << "Laplace solves for fibres successful.";
+        outAbsolutePath = outPath;
+    } else{
+        MITK_WARN << "Error with MESHTOOL3D Laplace solver Docker container.";
+    }
+    return outAbsolutePath;
+}
+
 /***************************************************************************
  *********************** Docker Helper Functions ***************************
  ***************************************************************************/

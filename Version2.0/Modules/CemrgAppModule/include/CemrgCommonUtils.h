@@ -63,12 +63,16 @@ public:
     static void ConvertToCarto(std::string vtkPath);
     static void CalculatePolyDataNormals(vtkSmartPointer<vtkPolyData>& pd, bool celldata=true);
 
+    //Carp Utils
+    static void OriginalCoordinates(QString imagePath, QString pointPath, QString outputPath, double scaling=1000);
+    static void CalculateCentreOfGravity(QString pointPath, QString elemPath, QString outputPath);
+    static void RegionMapping(QString bpPath, QString pointPath, QString elemPath, QString outputPath);
+
     //Generic
     static mitk::DataNode::Pointer AddToStorage(
             mitk::BaseData* data, std::string nodeName, mitk::DataStorage::Pointer ds);
 
 private:
-
     //Cropping Utils
     static mitk::Image::Pointer imageToCut;
     static mitk::BoundingObject::Pointer cuttingCube;

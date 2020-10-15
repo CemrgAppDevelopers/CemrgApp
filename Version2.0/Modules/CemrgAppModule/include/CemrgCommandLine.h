@@ -67,6 +67,10 @@ public:
     //Execute Docker Specific Functions
     QString DockerCemrgNetPrediction(QString mra);
     QString DockerDicom2Nifti(QString path2dicomfolder);
+    QString DockerSurfaceFromMesh(QString dir, QString meshname, QString op, QString outputSuffix); // = meshtool extract surface
+    QString DockerComputeFibres(QString dir, QString meshname, QString lapapex, QString lapepi, QString laplv, QString laprv, QString type="biv", double a_endo=40, double a_epi=-50, double b_endo=-65, double b_epi=25);
+    QString DockerLaplaceSolves(QString dir, QString outputName, QString paramsFullPath, bool optCarp=true, bool optVtk=true);
+
 
     //Docker Helper Functions
     void SetUseDockerContainers(bool dockerContainersOnOff);

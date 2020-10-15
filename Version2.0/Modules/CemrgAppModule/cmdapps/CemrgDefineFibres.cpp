@@ -141,6 +141,9 @@ int main(int argc, char* argv[]) {
                 "beta_epi", "b_epi", mitkCommandLineParser::String,
                 "Beta_Epi Angle", "angle in degrees");
     parser.addArgument(
+                "read-gradients", "grad", mitkCommandLineParser::Bool,
+                "External gradients", "Whether to read in Laplace solves gradients" );
+    parser.addArgument(
                 "iterations", "iter", mitkCommandLineParser::String,
                 "Maximum number of iterations (for debugging)", "Iterations default = 0 (do all elements)");
     parser.addArgument(
@@ -178,6 +181,7 @@ int main(int argc, char* argv[]) {
     std::string frequency_str = "100000";
     auto debug = false;
     auto verbose = false;
+    auto readingrads = false;
 
     // Parse, cast and set optional arguments
     std::cout << "Checking for user-defined parameters" << '\n';
@@ -205,9 +209,14 @@ int main(int argc, char* argv[]) {
         frequency_str = us::any_cast<std::string>(parsedArgs["frequency"]);
     }
 
+    if (parsedArgs.end()!= parsedArgs.find("read-gradients")){
+        readingrads = us::any_cast<bool>(parsedArgs["read-gradients"]);
+    }
+
     if (parsedArgs.end()!= parsedArgs.find("debug")){
         debug = us::any_cast<bool>(parsedArgs["debug"]);
     }
+
 
     if (parsedArgs.end()!= parsedArgs.find("verbose")){
         verbose = us::any_cast<bool>(parsedArgs["verbose"]);
@@ -222,7 +231,6 @@ int main(int argc, char* argv[]) {
         MITK_INFO(verbose) << "beta_epi: " << beta_epi_str;
         MITK_INFO(verbose) << "beta_endo: " << beta_endo_str;
         MITK_INFO(verbose) << "iterations: " << iterations_str;
-        MITK_INFO(verbose) << "frequency: " << frequency_str;
 
         double alpha_epi = QString::fromStdString(alpha_epi_str).toDouble();
         double alpha_endo = QString::fromStdString(alpha_endo_str).toDouble();
@@ -230,7 +238,7 @@ int main(int argc, char* argv[]) {
         double beta_endo = QString::fromStdString(beta_endo_str).toDouble();
         int iterations = QString::fromStdString(iterations_str).toInt();
         int frequency = QString::fromStdString(frequency_str).toInt();
-	std::cout << "freq:" << frequency << std::endl;
+	    std::cout << "freq:" << frequency << std::endl;
 
         QFileInfo fi(QString::fromStdString(meshfile));
         QString path2files = fi.absolutePath() + mitk::IOUtil::GetDirectorySeparator();
@@ -241,6 +249,7 @@ int main(int argc, char* argv[]) {
         QString writeOutFile = path2files + "cemrg_" + basename + "_fibres.lon";
 
         std::ifstream elemFileRead, ptsFileRead, fapex, flv, frv, fepi;
+        std::ifstream grapex, grlv, grrv, grepi;
         std::ofstream outputFileWrite;
 
         int nElem, nPts;
@@ -289,6 +298,13 @@ int main(int argc, char* argv[]) {
 
         MITK_INFO(verbose) << ("Iterations: " + QString::number(nIter)).toStdString();
 
+        if(readingrads){
+            grepi.open((path2files + basename + "_psi_ab.grad").toStdString());
+            grapex.open((path2files + basename + "_phi_epi.grad").toStdString());
+            grlv.open((path2files + basename + "_phi_lv.grad").toStdString());
+            grrv.open((path2files + basename + "_phi_rv.grad").toStdString());
+        }
+
         double tol = 1e-7;
         outputFileWrite.open(writeOutFile.toStdString());
         outputFileWrite << "2\n";
@@ -320,10 +336,19 @@ int main(int argc, char* argv[]) {
             std::vector<double> epi_gradient, apex_gradient, lv_gradient, rv_gradient;
             std::vector<double> ptsInEl = pointsInElem(elemIdx, pts);
 
-            epi_gradient = elementGradient2(elemIdx, ptsInEl, epi_v);
-            apex_gradient = elementGradient2(elemIdx, ptsInEl, apex_v);
-            lv_gradient = elementGradient2(elemIdx, ptsInEl, lv_v);
-            rv_gradient = elementGradient2(elemIdx, ptsInEl, rv_v);
+            if(readingrads){
+                for (short int ix=0; ix<3; ix++){
+                    grepi >> epi_gradient[ix];
+                    grapex >> apex_gradient[ix];
+                    grlv >> lv_gradient[ix];
+                    grrv >> rv_gradient[ix];
+                }
+            } else {
+                epi_gradient = elementGradient2(elemIdx, ptsInEl, epi_v);
+                apex_gradient = elementGradient2(elemIdx, ptsInEl, apex_v);
+                lv_gradient = elementGradient2(elemIdx, ptsInEl, lv_v);
+                rv_gradient = elementGradient2(elemIdx, ptsInEl, rv_v);
+            }
             if(debug){
                 print_vec("epi_gradient" , epi_gradient);
                 print_vec("apex_gradient", apex_gradient);
@@ -371,6 +396,12 @@ int main(int argc, char* argv[]) {
 
         elemFileRead.close();
         outputFileWrite.close();
+        if(readingrads){
+            grepi.close();
+            grapex.close();
+            grlv.close();
+            grrv.close();
+        }
 
         bool success = true;
         MITK_INFO(success) << "Successful program";

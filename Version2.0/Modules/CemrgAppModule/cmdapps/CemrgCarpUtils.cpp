@@ -53,6 +53,7 @@ in the framework.
 // ITK
 #include <itkPoint.h>
 #include <itkImage.h>
+#include "itkImageFileReader.h"
 #include <itkImageFileWriter.h>
 #include <itkResampleImageFilter.h>
 #include <itkImageRegionIterator.h>
@@ -74,8 +75,14 @@ in the framework.
 // #include <math.h>
 
 typedef itk::Image<uint8_t,3> ImageType;
-typedef itk::Index<3> IndexType;
+typedef itk::ImageFileReader<ImageType> ReaderType;
 typedef itk::ImageRegionIterator<ImageType> IteratorType;
+typedef itk::Index<3> IndexType;
+int min_i, min_j, min_k;
+int max_i, max_j, max_k;
+ImageType::SizeType size;
+ImageType::SpacingType spacing;
+ImageType::PointType origin;
 
 class ScarImage{
   protected:
@@ -85,7 +92,7 @@ class ScarImage{
     double transMat[4][4];
 
   public:
-    ScarImage(char *filename) {
+    ScarImage(std::string filename) {
         ReaderType::Pointer reader = ReaderType::New();
         reader->SetFileName(filename);
         reader->Update();
@@ -332,7 +339,7 @@ bool originalCoordinates(QString imagePath, QString pointPath, QString outputPat
         ImageType::Pointer itkInput = ImageType::New();
         ImageType::PointType origin;
         mitk::CastToItkImage(image, itkInput);
-        origin = image->GetOrigin();
+        origin = itkInput->GetOrigin();
         bool outputToConsole = outputPath.isEmpty();
 
         std::ifstream pointFileRead;
@@ -388,13 +395,13 @@ bool originalCoordinates(QString imagePath, QString pointPath, QString outputPat
 bool calculateCentreOfGravity(QString pointPath, QString elemPath, QString outputPath, bool v){
     bool success = false;
     if(QFileInfo::exists(elemPath) && QFileInfo::exists(pointPath)){
-        std::ifstream pointFileRead;
-        std::ifstream elemFileRead;
+        FILE* pointFileRead = fopen(pointPath.toStdString().c_str(), "r");
+        FILE* elemFileRead = fopen(elemPath.toStdString().c_str(), "r");
         int nPts, nElem;
         bool outputToConsole = outputPath.isEmpty();
 
-        pointFileRead.open(pointPath.toStdString());
-        pointFileRead >> nPts;
+        fscanf(pointFileRead, "%d\n", &nPts);
+
 
         double* pts_array = (double*)malloc(nPts * 3 * sizeof(double));
     	if (pts_array == NULL) {
@@ -403,16 +410,15 @@ bool calculateCentreOfGravity(QString pointPath, QString elemPath, QString outpu
     	}
 
         fputs("Beginning input .pts file\n", stderr);
-    	for (int i = 0; i < pts_n; i++) {
+    	for (int i = 0; i < nPts; i++) {
     		double* loc = pts_array + 3*i;
-    		fscanf(pts_fp, "%lf %lf %lf\n", loc, loc + 1, loc + 2);
+    		fscanf(pointFileRead, "%lf %lf %lf\n", loc, loc + 1, loc + 2);
     	}
     	fputs("Completed input .pts file\n", stderr);
 
-    	fclose(pts_fp);
+    	fclose(pointFileRead);
 
-        elemFileRead.open(elemPath.toStdString());
-        elemFileRead >> nElem;
+        fscanf(elemFileRead, "%d\n", &nElem);
 
         std::ofstream outputFileWrite;
         if(!outputToConsole){
@@ -566,7 +572,7 @@ bool calculateCentreOfGravity(QString pointPath, QString elemPath, QString outpu
 bool regionMapping(QString bpPath, QString pointPath, QString elemPath, QString outputPath, bool v){
     bool success = false;
     if(QFileInfo::exists(bpPath) && QFileInfo::exists(pointPath) && QFileInfo::exists(elemPath)){
-        ScarImage image(bpPath.toStdString().c_str());
+        ScarImage image(bpPath.toStdString());
 
         std::ofstream outputFileWrite;
         std::ifstream cogFileRead, elemFileRead;
@@ -578,6 +584,7 @@ bool regionMapping(QString bpPath, QString pointPath, QString elemPath, QString 
         cogFileRead >> nElemCOG;
         cogFileRead >> dim;
 
+        bool outputToConsole = outputPath.isEmpty();
         if(!outputToConsole){
             outputFileWrite.open(outputPath.toStdString());
             outputFileWrite << nElemCOG << std::endl;
@@ -643,18 +650,18 @@ bool regionMapping(QString bpPath, QString pointPath, QString elemPath, QString 
         MITK_INFO << ("Number of element COG read: " + QString::number(count)).toStdString();
         MITK_INFO << ("Number of new regions determined: " + QString::number(newRegionCount)).toStdString();
 
-        if ( minIx < 0 || minJx < 0 || minKx < 0 ) {
+        if ( min_i < 0 || min_j < 0 || min_k < 0 ) {
             MITK_WARN << "WARNING: The elemCOG file falls outside the image bounds! Code assumes that no scar lies in this region.";
             MITK_WARN << "If scar does lie in this region, then you need to pad the image at the start by (in pixel space):";
-            MITK_WARN << (QString::number(-minIx) + " " + QString::number(-minJx) + " " + QString::number(-minKx)).toStdString();
+            MITK_WARN << (QString::number(-min_i) + " " + QString::number(-min_j) + " " + QString::number(-min_k)).toStdString();
             MITK_WARN << "And add the following transformation to the TransMatFile (in geometric space):";
-            MITK_WARN << (QString::number(-minIx*spacing[0]) + " " + QString::number(-minJx*spacing[1]) + " " + QString::number(-minKx*spacing[2])).toStdString();
+            MITK_WARN << (QString::number(-min_i*spacing[0]) + " " + QString::number(-min_j*spacing[1]) + " " + QString::number(-min_k*spacing[2])).toStdString();
             success=false;
         }
-        if ( maxIx > int(size[0]-1) || maxJx > int(size[1]-1) || maxKx > int(size[2]-1) ) {
+        if ( max_i > int(size[0]-1) || max_j > int(size[1]-1) || max_k > int(size[2]-1) ) {
             MITK_WARN << "WARNING: The elemCOG file falls outside the image bounds! Code assumes that no scar lies in this region.";
             MITK_WARN << "If scar does lie in this region, then you need to pad the image at the end by (in pixel space):";
-            MITK_WARN << (QString::number(maxIx-(size[0]-1)) + " " + QString::number(maxJx-(size[1]-1)) + " " + QString::number(maxKx-(size[2]-1))).toStdString();
+            MITK_WARN << (QString::number(max_i-(size[0]-1)) + " " + QString::number(max_j-(size[1]-1)) + " " + QString::number(max_k-(size[2]-1))).toStdString();
             MITK_WARN << "No need to change TransMatFile";
             success=false;
         }
