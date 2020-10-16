@@ -144,7 +144,7 @@ class ScarImage{
             min_k = min(k, min_k);
             return 0;
         }
-        else if ( i > size[0]-1 || j > size[1]-1 || k > size[2]-1 ) {
+        else if ( (unsigned) i > size[0]-1 || (unsigned) j > size[1]-1 || (unsigned) k > size[2]-1 ) {
             using std::max;
             max_i = max(i, max_i);
             max_j = max(j, max_j);
@@ -334,6 +334,7 @@ int main(int argc, char* argv[]) {
 
 bool originalCoordinates(QString imagePath, QString pointPath, QString outputPath, bool v){
     bool success = false;
+    MITK_INFO(v) << "Verbose Original Coordinates";
     if(QFileInfo::exists(imagePath) && QFileInfo::exists(pointPath)){
         mitk::Image::Pointer image = mitk::IOUtil::Load<mitk::Image>(imagePath.toStdString());
         ImageType::Pointer itkInput = ImageType::New();
@@ -605,7 +606,7 @@ bool regionMapping(QString bpPath, QString pointPath, QString elemPath, QString 
 
         count = 0;
         char type[2];
-        int nodes[4], region, newRegion;
+        int nodes[4], region;
         int newRegionCount = 0;
 
         for(int iElem=0; iElem < nElemCOG; iElem++){

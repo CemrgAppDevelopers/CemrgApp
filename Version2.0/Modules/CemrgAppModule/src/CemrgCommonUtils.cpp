@@ -695,7 +695,7 @@ void CemrgCommonUtils::RegionMapping(QString bpPath, QString pointPath, QString 
             yt = Tx[1][0] * x + Tx[1][1] * y + Tx[1][2] * z + Tx[1][3]- origin[1] + spacing[0]/2;
             zt = Tx[2][0] * x + Tx[2][1] * y + Tx[2][2] * z + Tx[2][3]- origin[2] + spacing[0]/2;
 
-            unsigned int i,j,k;
+            int i,j,k;
             i = static_cast<int>(xt/spacing[0]);
             j = static_cast<int>(yt/spacing[1]);
             k = static_cast<int>(zt/spacing[2]);
@@ -706,8 +706,7 @@ void CemrgCommonUtils::RegionMapping(QString bpPath, QString pointPath, QString 
                 min_k = std::min(k, min_k);
                 newRegion = 0;
             }
-            else if ( i > size[0]-1 || j > size[1]-1 || k > size[2]-1 ) {
-                using std::max;
+            else if ( (unsigned) i > size[0]-1 || (unsigned) j > size[1]-1 || (unsigned) k > size[2]-1 ) {
                 max_i = std::max(i, max_i);
                 max_j = std::max(j, max_j);
                 max_k = std::max(k, max_k);
