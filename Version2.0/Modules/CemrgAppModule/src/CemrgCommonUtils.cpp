@@ -593,7 +593,6 @@ void CemrgCommonUtils::CalculateCentreOfGravity(QString pointPath, QString elemP
     		y /= 4.0 * 1000;
     		z /= 4.0 * 1000;
 
-            outputFileWrite.open(outputPath.toStdString());
             outputFileWrite << x << std::endl;
             outputFileWrite << y << std::endl;
             outputFileWrite << z << std::endl;

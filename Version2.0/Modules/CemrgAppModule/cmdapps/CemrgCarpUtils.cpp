@@ -463,7 +463,6 @@ bool calculateCentreOfGravity(QString pointPath, QString elemPath, QString outpu
     		z /= 4.0 * 1000;
 
             if(!outputToConsole){
-                outputFileWrite.open(outputPath.toStdString());
                 outputFileWrite << x << std::endl;
                 outputFileWrite << y << std::endl;
                 outputFileWrite << z << std::endl;
