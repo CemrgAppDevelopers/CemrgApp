@@ -615,7 +615,6 @@ void CemrgCommonUtils::CalculateCentreOfGravity(QString pointPath, QString elemP
 void CemrgCommonUtils::RegionMapping(QString bpPath, QString pointPath, QString elemPath, QString outputPath){
     if(QFileInfo::exists(bpPath) && QFileInfo::exists(pointPath) && QFileInfo::exists(elemPath)){
         typedef itk::Image<uint8_t,3> ImageType;
-        typedef itk::ImageRegionIterator<ImageType> IteratorType;
         typedef itk::Index<3> IndexType;
         // ScarImage image(bpPath.toStdString());
         mitk::Image::Pointer image = mitk::IOUtil::Load<mitk::Image>(bpPath.toStdString());
@@ -696,7 +695,7 @@ void CemrgCommonUtils::RegionMapping(QString bpPath, QString pointPath, QString 
             yt = Tx[1][0] * x + Tx[1][1] * y + Tx[1][2] * z + Tx[1][3]- origin[1] + spacing[0]/2;
             zt = Tx[2][0] * x + Tx[2][1] * y + Tx[2][2] * z + Tx[2][3]- origin[2] + spacing[0]/2;
 
-            int i,j,k;
+            unsigned int i,j,k;
             i = static_cast<int>(xt/spacing[0]);
             j = static_cast<int>(yt/spacing[1]);
             k = static_cast<int>(zt/spacing[2]);
@@ -715,7 +714,7 @@ void CemrgCommonUtils::RegionMapping(QString bpPath, QString pointPath, QString 
                 newRegion = 0;
 
             } else {
-                IndexType index = {(i,j,k)};
+                IndexType index = {{i, j, k}};
                 newRegion = itkInput->GetPixel(index);
             }
 
