@@ -8,4 +8,11 @@
           icon="resources/icon.xpm" />
   </extension>
 
+  <extension point="org.blueberry.ui.views">
+    <view id="org.mitk.views.fibres"
+          name="Cemrg Fibres"
+          class="FibresView"
+          icon="resources/icon.xpm" />
+  </extension>
+
 </plugin>

@@ -55,8 +55,10 @@ PURPOSE.  See the above copyright notices for more information.
 //Qt
 #include <QMessageBox>
 #include <QString>
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QFileDialog>
 #include <QTextStream>
 #include "CemrgCommonUtils.h"
 
@@ -339,6 +341,84 @@ QString CemrgCommonUtils::M3dlibParamFileGenerator(QString dir, QString filename
 
         out << "[others]" << "\n\n";
         out << "eval_thickness" << "=" << thicknessCalc << "\n";
+        out << "thickalgo" << "=" << "1" << "\n"; //#1: Martin Bishop Algorithm; 2: Cesare Corrado Algorithm
+        out << "swapregions" << "=" << "1" << "\n";
+        out << "verbose" << "=" << "0" << "\n";
+
+        return path2file;
+
+    } else {
+        MITK_WARN << ("File " + path2file + "not created.").toStdString();
+        return "ERROR_IN_PROCESSING";
+    }
+}
+
+QString CemrgCommonUtils::M3dlibLapSolvesParamFile(QString dir, QString filename, QString meshname, QString meshdir, bool usingDocker) {
+
+    QString path2file = dir + mitk::IOUtil::GetDirectorySeparator() + filename;
+    QFile fi(path2file);
+    QString meshdirinfile;
+    if(usingDocker){
+        QDir home(dir);
+        meshdirinfile = home.relativeFilePath(meshdir);
+    } else{
+        meshdirinfile = meshdir;
+    }
+
+    if (fi.open(QFile::WriteOnly | QFile::Truncate)) {
+        QTextStream out(&fi);
+        out << "[segmentation]" << "\n\n";
+        out << "seg_dir" << "=" << "./example" << "\n";
+        out << "seg_name" << "=" << "converted.inr" << "\n";
+        out << "mesh_from_segmentation" << "=" << "0" << "\n\n";
+
+        out << "[meshing]" << "\n\n";
+        out << "readTheMesh" << "=" << "1" << "\n";
+        out << "mesh_dir" << "=" << meshdirinfile << "\n";
+        out << "mesh_name" << "=" << meshname << "\n\n";
+
+        out << "facet_angle" << "=" << "30"<< "\n";
+        out << "facet_size" << "=" << "5.0" << "\n";
+        out << "facet_distance" << "=" << "4"<< "\n";
+        out << "cell_rad_edge_ratio" << "=" << "2.0" << "\n";
+        out << "cell_size" << "=" << "1.0" << "\n\n";
+
+        out << "rescaleFactor" << "=" << "1.0  # rescaling for carp and vtk output" << "\n\n";
+
+        out << "[laplacesolver]" << "\n\n";
+        out << "abs_toll" << "=" << "1e-6 # Also for evaluating the thickness" << "\n";
+        out << "rel_toll" << "=" << "1e-6" << "\n";
+        out << "itr_max" << "=" << "500" << "\n";
+        out << "dimKrilovSp" << "=" << "150" << "\n";
+        out << "verbose" << "=" << "0" << "\n\n";
+
+        out << "[fibres]" << "\n\n";
+        out << "eval_fibres" << "= 0\n";
+        out << "external_ls" << "= 0\n";
+        out << "read_mesh_tags" << "= 0\n";
+        out << "save_ls_sol" << "= 1\n";
+        out << "from_carp" << "= 1\n";
+        out << "verbose" << "= 0\n";
+        out << "alpha_endo" << "= 40\n";
+        out << "alpha_epi" << "=-50\n";
+        out << "beta_endo" << "=-65\n";
+        out << "beta_epi" << "= 25\n";
+
+        out << "[output]" << "\n\n";
+        out << "outdir" << "=" << meshdirinfile << "\n";
+        out << "name" << "=" << meshname << "\n\n";
+
+        out << "out_medit" << "=" << "0" << "\n";
+        out << "out_carp" << "=" << "1" << "\n";
+        out << "out_carp_binary" << "=" << "0" << "\n";
+        out << "out_vtk" << "=" << "1" << "\n";
+        out << "out_vtk_binary" << "=" << "0" << "\n";
+        out << "out_potential" << "=" << "0" << "\n";
+        out << "debug_output" << "=" << "0" << "\n";
+        out << "debug_frequency" << "=" << "10000" << "\n\n";
+
+        out << "[others]" << "\n\n";
+        out << "eval_thickness" << "= 0 \n";
         out << "thickalgo" << "=" << "1" << "\n"; //#1: Martin Bishop Algorithm; 2: Cesare Corrado Algorithm
         out << "swapregions" << "=" << "1" << "\n";
         out << "verbose" << "=" << "0" << "\n";

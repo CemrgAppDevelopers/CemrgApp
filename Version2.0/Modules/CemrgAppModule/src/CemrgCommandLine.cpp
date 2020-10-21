@@ -149,7 +149,7 @@ QString CemrgCommandLine::ExecuteCreateCGALMesh(QString dir, QString outputName,
 
     } else {
 
-        MITK_INFO << "Using static MIRTK libraries.";
+        MITK_INFO << "Using static MESHTOOLS3D libraries.";
         executablePath = QString::fromStdString(mitk::IOUtil::GetProgramPath()) + mitk::IOUtil::GetDirectorySeparator() + "M3DLib";
 #if defined(__APPLE__)
         executablePath = mitk::IOUtil::GetDirectorySeparator() + QString("Applications") +
@@ -1081,7 +1081,9 @@ QString CemrgCommandLine::DockerSurfaceFromMesh(QString dir, QString meshname, Q
 
     QDir home(dir);
 
-    QString outname = meshname+"_"+outputSuffix;
+    QString outname = meshname;
+    outname += (outputSuffix.at(0)=="_") ? outputSuffix : ("_"+outputSuffix);
+
     QStringList arguments = GetDockerArguments(home.absolutePath());
     arguments << "extract" << "surface";
     arguments << ("-msh="+meshname);
@@ -1139,41 +1141,85 @@ QString CemrgCommandLine::DockerComputeFibres(QString dir, QString meshname, QSt
     return outAbsolutePath;
 }
 
-QString CemrgCommandLine::DockerLaplaceSolves(QString dir, QString outputName, QString paramsFullPath, bool optCarp, bool optVtk){
-    SetDockerImage("alonsojasl/meshtool3d-lapsolves:v1.0");
+QString CemrgCommandLine::ExecuteLaplaceSolves(QString dir, QString meshName, QString outputName, QString paramsFullPath, bool optCarp, bool optVtk){
+    MITK_INFO << "[ATTENTION] Attempting meshtools3d/lapsolves libraries.";
+    SetDockerImage("alonsojasl/meshtools3d-lapsolves:v1.0");
+
+    QString outAbsolutePath = "ERROR_IN_PROCESSING";
     QString executablePath = "";
+    QString executableName;
+    QDir home(dir);
+
+    QStringList arguments;
+    if(_useDockerContainers){
+        MITK_INFO << "Using docker containers.";
 #if defined(__APPLE__)
         executablePath = "/usr/local/bin/";
 #endif
-    QString executableName = executablePath+"docker";
-    QString outAbsolutePath = "ERROR_IN_PROCESSING";
+        executableName = executablePath+"docker";
+        arguments = GetDockerArguments(home.absolutePath());
+        arguments << "-f" << home.relativeFilePath(paramsFullPath);
+        arguments << "-mesh_dir" << home.relativeFilePath(dir);
+        arguments << "-mesh_name" << meshName;
+        arguments << "-out_dir" << home.relativeFilePath(dir);
+        arguments << "-out_name" << outputName;
 
-    QDir home(dir);
+    } else{
+        MITK_INFO << "Using static MESHTOOLS3D libraries.";
+        executablePath = QString::fromStdString(mitk::IOUtil::GetProgramPath()) + mitk::IOUtil::GetDirectorySeparator() + "M3DLib";
+        #if defined(__APPLE__)
+        executablePath = mitk::IOUtil::GetDirectorySeparator() + QString("Applications") +
+                mitk::IOUtil::GetDirectorySeparator() + QString("CemrgApp") +
+                mitk::IOUtil::GetDirectorySeparator() + QString("M3DLib");
+        #endif
 
-    QString outname = outputName + "_lap_apex_potential.dat";
+        executableName = executablePath + mitk::IOUtil::GetDirectorySeparator() + "lapsolves";
+        QDir apathd(executablePath);
+        if (apathd.exists()) {
+            process->setWorkingDirectory(executablePath);
+            arguments << "-f" << paramsFullPath;
+            arguments << "-mesh_dir" << dir;
+            arguments << "-mesh_name" << meshName;
+            arguments << "-out_dir" << dir;
+            arguments << "-out_name" << outputName;
+        } else{
+            QMessageBox::warning(NULL, "Please check the LOG", "MESHTOOLS3D libraries not found");
+            MITK_WARN << "MESHTOOLS3D libraries not found. Please make sure the M3DLib folder is inside the directory:\n\t" + mitk::IOUtil::GetProgramPath();
+        }
+    }
+    if(optCarp){ // to read meshtool generated surfaces (default=true)
+        arguments << "-carp";
+    }
+    if(!optVtk){ // allows creation of output VTK file with laplace solves
+        arguments << "-novtk";
+    }
+#ifndef _WIN32
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("TBB_NUM_THREADS","12");
+    process->setProcessEnvironment(env);
+#endif
+
     // if _lap_apex.dat is generated, we assume _lap_epi, _lap_lv , and _lap_rv are too.
-    QStringList arguments = GetDockerArguments(home.absolutePath());
-    arguments << "-f" << home.relativeFilePath(paramsFullPath);
-    arguments << "-out_dir" << home.relativeFilePath(dir);
-    arguments << "-out_name" << outputName;
-    if(optCarp){
-        arguments << "-carp"; // to read meshtool generated surfaces (default=true)
-    }
-    if(!optVtk){
-        arguments << "-novtk"; // allows creation of output VTK file with laplace solves
-    }
-
+    QString outname = outputName + "_lap_apex_potential.dat";
     QString outPath = home.absolutePath() + mitk::IOUtil::GetDirectorySeparator() + outname;
 
-    bool successful = ExecuteCommand(executableName, arguments, outPath);
+    bool successful = ExecuteCommand(executableName, arguments, outAbsolutePath);
 
-    if (successful) {
-        MITK_INFO << "Laplace solves for fibres successful.";
-        outAbsolutePath = outPath;
-    } else{
-        MITK_WARN << "Error with MESHTOOL3D Laplace solver Docker container.";
+    if (!successful) {
+        if (!_useDockerContainers) {
+            MITK_WARN << "MESHTOOLS3D did not produce a good outcome. Trying with the MESHTOOLS3D Docker container.";
+            SetUseDockerContainersOn();
+            MITK_INFO << "[ATTENTION] Creating param file to docker-compatible parameter file.";
+            MITK_INFO << "[ATTENTION] Docker implemenation does not allow for vtk output creation.";
+            QString dockerparam = CemrgCommonUtils::M3dlibLapSolvesParamFile(dir, "docker-param.par", meshName, dir, true);
+            return ExecuteLaplaceSolves(dir, meshName, outputName, dockerparam, optCarp, false);
+        } else {
+            MITK_WARN << "MESHTOOLS3D Docker container did not produce a good outcome.";
+            return "ERROR_IN_PROCESSING";
+        }
+    } else {
+        return outAbsolutePath;
     }
-    return outAbsolutePath;
 }
 
 /***************************************************************************

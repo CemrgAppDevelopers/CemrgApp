@@ -51,6 +51,7 @@ public:
     //Execute Plugin Specific Functions
     QString ExecuteSurf(QString dir, QString segPath, QString morphOperation="close", int iter=1, float th=0.5, int blur=0, int smth=10);
     QString ExecuteCreateCGALMesh(QString dir, QString outputName, QString paramsFullPath, QString segmentationName="converted.inr");
+    QString ExecuteLaplaceSolves(QString dir, QString meshName, QString outputName, QString paramsFullPath, bool optCarp=true, bool optVtk=false);
     void ExecuteTracking(QString dir, QString imgTimes, QString param, QString output="tsffd.dof");
     void ExecuteApplying(QString dir, QString inputMesh, double iniTime, QString dofin, int noFrames, int smooth);
     void ExecuteRegistration(QString dir, QString fixed, QString moving, QString transformFileName="rigid.dof", QString modelname="Rigid");
@@ -69,7 +70,6 @@ public:
     QString DockerDicom2Nifti(QString path2dicomfolder);
     QString DockerSurfaceFromMesh(QString dir, QString meshname, QString op, QString outputSuffix); // = meshtool extract surface
     QString DockerComputeFibres(QString dir, QString meshname, QString lapapex, QString lapepi, QString laplv, QString laprv, QString type="biv", double a_endo=40, double a_epi=-50, double b_endo=-65, double b_epi=25);
-    QString DockerLaplaceSolves(QString dir, QString outputName, QString paramsFullPath, bool optCarp=true, bool optVtk=true);
 
 
     //Docker Helper Functions

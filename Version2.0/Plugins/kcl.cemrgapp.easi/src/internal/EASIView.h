@@ -34,6 +34,7 @@ PURPOSE.  See the above copyright notices for more information.
 #include <mitkSurface.h>
 #include "ui_EASIViewControls.h"
 #include "ui_EASIViewUIMeshing.h"
+#include "ui_FibresViewControls.h"
 
 /**
   \brief EASIView
@@ -69,6 +70,7 @@ protected slots:
     void Simulation();
     void LoadMesh();
     void Reset();
+    void LoadFibresView();
 
 protected:
 
@@ -84,6 +86,7 @@ protected:
 private:
 
     QString directory;
+    bool RequestProjectDirectoryFromUser();
 };
 
 #endif // EASIView_h

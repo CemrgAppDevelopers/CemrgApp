@@ -137,6 +137,19 @@
     </widget>
    </item>
    <item>
+    <widget class="QPushButton" name="btn_4_bis">
+     <property name="toolTip">
+      <string>Do image processing</string>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">text-align: left;</string>
+     </property>
+     <property name="text">
+      <string>   Step4 (bis): Generate Fibres </string>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="QPushButton" name="button_5">
      <property name="toolTip">
       <string>Do image processing</string>

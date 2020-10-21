@@ -28,6 +28,7 @@ PURPOSE.  See the above copyright notices for more information.
 
 #include "kcl_cemrgapp_easi_Activator.h"
 #include "EASIView.h"
+#include "FibresView.h"
 
 namespace mitk {
 
@@ -36,6 +37,7 @@ ctkPluginContext* kcl_cemrgapp_easi_Activator::pluginContext = nullptr;
 void kcl_cemrgapp_easi_Activator::start(ctkPluginContext *context) {
 
     BERRY_REGISTER_EXTENSION_CLASS(EASIView, context);
+    BERRY_REGISTER_EXTENSION_CLASS(FibresView, context);
     pluginContext = context;
 }
 

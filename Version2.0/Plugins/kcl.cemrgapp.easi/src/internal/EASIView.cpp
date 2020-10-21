@@ -52,6 +52,7 @@ PURPOSE.  See the above copyright notices for more information.
 #include <mitkImage.h>
 #include "kcl_cemrgapp_easi_Activator.h"
 #include "EASIView.h"
+#include "FibresView.h"
 
 // Qt
 #include <QMessageBox>
@@ -87,6 +88,7 @@ void EASIView::CreateQtPartControl(QWidget *parent) {
     connect(m_Controls.button_2, SIGNAL(clicked()), this, SLOT(ProcessIMGS()));
     connect(m_Controls.button_3, SIGNAL(clicked()), this, SLOT(SegmentIMGS()));
     connect(m_Controls.button_4, SIGNAL(clicked()), this, SLOT(CreateMesh()));
+    connect(m_Controls.btn_4_bis, SIGNAL(clicked()), this, SLOT(LoadFibresView()));
     connect(m_Controls.button_5, SIGNAL(clicked()), this, SLOT(ActivationSites()));
     connect(m_Controls.button_6, SIGNAL(clicked()), this, SLOT(Simulation()));
     connect(m_Controls.button_l, SIGNAL(clicked()), this, SLOT(LoadMesh()));
@@ -694,4 +696,37 @@ void EASIView::Reset() {
     //Clear project directory
     directory.clear();
     m_Controls.button_2_2->setText("Crop Images");
+}
+
+void EASIView::LoadFibresView(){
+    std::cout << "LoadFibresView" << '\n';
+    if(!RequestProjectDirectoryFromUser()) return;
+
+    //Show the plugin
+    this->GetSite()->GetPage()->ResetPerspective();
+    FibresView::SetDirectoryFile(directory, "CGALMesh");
+    this->GetSite()->GetPage()->ShowView("org.mitk.views.fibres");
+}
+
+// helper functions
+bool EASIView::RequestProjectDirectoryFromUser(){
+    bool succesfulAssignment = true;
+    //Ask the user for a dir to store data
+    if (directory.isEmpty()) {
+        MITK_INFO << "Directory is empty. Requesting user for directory.";
+        directory = QFileDialog::getExistingDirectory(
+                    NULL, "Open Project Directory", mitk::IOUtil::GetProgramPath().c_str(),
+                    QFileDialog::ShowDirsOnly|QFileDialog::DontUseNativeDialog);
+        MITK_INFO << ("Directory selected:" + directory).toStdString();
+        if (directory.isEmpty() || directory.simplified().contains(" ")) {
+            MITK_WARN << "Please select a project directory with no spaces in the path!";
+            QMessageBox::warning(NULL, "Attention", "Please select a project directory with no spaces in the path!");
+            directory = QString();
+            succesfulAssignment = false;
+        }//_if
+    } else {
+        MITK_INFO << ("Project directory already set: " + directory).toStdString();
+    }
+
+    return succesfulAssignment;
 }
