@@ -43,6 +43,8 @@ PURPOSE.  See the above copyright notices for more information.
 #include <thread>
 #include <chrono>
 #include <sys/stat.h>
+
+#include "CemrgCommonUtils.h"
 #include "CemrgCommandLine.h"
 
 CemrgCommandLine::CemrgCommandLine() {
@@ -1203,7 +1205,7 @@ QString CemrgCommandLine::ExecuteLaplaceSolves(QString dir, QString meshName, QS
     QString outname = outputName + "_lap_apex_potential.dat";
     QString outPath = home.absolutePath() + mitk::IOUtil::GetDirectorySeparator() + outname;
 
-    bool successful = ExecuteCommand(executableName, arguments, outAbsolutePath);
+    bool successful = ExecuteCommand(executableName, arguments, outPath);
 
     if (!successful) {
         if (!_useDockerContainers) {

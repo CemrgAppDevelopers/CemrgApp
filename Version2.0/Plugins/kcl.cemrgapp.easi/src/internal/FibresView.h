@@ -38,8 +38,8 @@ PURPOSE.  See the above copyright notices for more information.
 #include "vtkTextActor.h"
 
 #include "ui_FibresViewControls.h"
-#include "ui_FibresViewUITags.h";
-#include "ui_FibresViewUIAngles.h";
+#include "ui_FibresViewUITags.h"
+#include "ui_FibresViewUIAngles.h"
 
 /**
   \brief FibresView
@@ -91,9 +91,9 @@ protected:
     virtual void CreateQtPartControl(QWidget *parent) override;
     virtual void SetFocus() override;
 
-  Ui::FibresViewControls m_Controls;
-  Ui::FibresViewUITags m_Tags;
-  Ui::FibresViewUIAngles m_Angles;
+    Ui::FibresViewControls m_Controls;
+    Ui::FibresViewUITags m_UITags;
+    Ui::FibresViewUIAngles m_UIAngles;
 
 private:
     static QString basename; // normally 'mesh'

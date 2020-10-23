@@ -203,8 +203,8 @@ void FibresView::ExtractSurfaces(){
 
         // Create operations' strings
         QString opApex, opBIVbase, opLVendo, opRVendo, opEpi;
-        std::vector<int> vapex = {tag_apex, tag_lvendo};
-        std::vector<int> vbivbase = {tag_lvbase, t tag_rvepi, tag_lvepi};
+        std::vector<int> vapex = {tag_apex, tag_lvepi};
+        std::vector<int> vbivbase = {tag_lvbase, tag_rvbase, tag_rvepi, tag_lvepi};
         std::vector<int> vlvendo = {tag_lvendo, tag_lvepi, tag_lvbase, tag_apex, tag_rvbase, tag_rvepi, tag_rvendo};
         std::vector<int> vrvendo = {tag_rvendo, tag_lvepi, tag_lvbase, tag_apex, tag_rvbase, tag_rvepi, tag_lvendo};
         std::vector<int> vepi = {tag_lvepi, tag_apex, tag_rvepi, tag_lvbase, tag_rvbase, tag_lvendo, tag_rvendo};
@@ -225,16 +225,16 @@ void FibresView::ExtractSurfaces(){
         QFile::copy(elemFull, modPathName+".elem");
         QFile::copy(ptsFull, modPathName+".pts");
 
-        surfApex = cmd->DockerSurfaceFromMesh(dir, modName, "3-1", "_apex");
-        surfBase = cmd->DockerSurfaceFromMesh(dir, modName, "2,4-5,1", "_BIVbase");
+        surfApex = cmd->DockerSurfaceFromMesh(dir, modName, opApex, "_apex");
+        surfBase = cmd->DockerSurfaceFromMesh(dir, modName, opBIVbase, "_BIVbase");
 
         QFile::remove(modPathName+".elem");
         QFile::copy(cavElem, modPathName+".elem");
 
         MITK_INFO << "[FibresView] Extracting LVendo, RVendo and Epi";
-        surfLVendo = cmd->DockerSurfaceFromMesh(dir, modName, "10-1,2,3,4,5,30", "_LVendo");
-        surfRVendo = cmd->DockerSurfaceFromMesh(dir, modName, "30-1,2,3,4,5,10", "_RVendo");
-        surfEpi = cmd->DockerSurfaceFromMesh(dir, modName, "1,3,5-2,4,10,30", "_epi");
+        surfLVendo = cmd->DockerSurfaceFromMesh(dir, modName, opLVendo, "_LVendo");
+        surfRVendo = cmd->DockerSurfaceFromMesh(dir, modName, opRVendo, "_RVendo");
+        surfEpi = cmd->DockerSurfaceFromMesh(dir, modName, opEpi, "_epi");
 
         extractSurfaceDone = true;
     }
@@ -254,6 +254,7 @@ void FibresView::LaplaceSolves(){
     } else{
         std::unique_ptr<CemrgCommandLine> cmd(new CemrgCommandLine());
         cmd->SetDockerImage("alonsojasl/meshtools3d-lapsolves:v1.0");
+        cmd->SetUseDockerContainersOff();
 
         MITK_INFO << "Copying shift and cav files to _Mod";
         QFile::copy(shiftPts, modPathName+".pts");
@@ -266,7 +267,7 @@ void FibresView::LaplaceSolves(){
         QString paramfile = CemrgCommonUtils::M3dlibLapSolvesParamFile(dir, "param.par", modName, dir, false);
 
         QMessageBox::warning(NULL, "Attention", "Operations may take several minutes.");
-        QString outLapSolves = cmd->ExecuteLaplaceSolves(dir, modName, name, paramfile);
+        QString outLapSolves = cmd->ExecuteLaplaceSolves(dir, modName, modName, paramfile);
 
         MITK_INFO << ("[FibresView] Output Laplace Solves: " + outLapSolves).toStdString();
 
@@ -293,24 +294,25 @@ void FibresView::GenerateFibres(){
         MITK_INFO << "[FibresView] Selecting angles values from UI.";
         QDialog* inputs = new QDialog(0,0);
         m_UIAngles.setupUi(inputs);
-        connect(m_UITags.buttonBox, SIGNAL(accepted()), inputs, SLOT(accept()));
-        connect(m_UITags.buttonBox, SIGNAL(rejected()), inputs, SLOT(reject()));
+        connect(m_UIAngles.buttonBox, SIGNAL(accepted()), inputs, SLOT(accept()));
+        connect(m_UIAngles.buttonBox, SIGNAL(rejected()), inputs, SLOT(reject()));
         int dialogCode = inputs->exec();
 
         if (dialogCode == QDialog::Accepted) {
             bool ok1, ok2, ok3, ok4;
-            alpha_endo = m_UITags.txt_aendo->text().toDouble(&ok1);
+            alpha_endo = m_UIAngles.txt_aendo->text().toDouble(&ok1);
             if(!ok1) SetDefaultAngleAlphaEndo();
-            alpha_epi = m_UITags.txt_aepi->text().toDouble(&ok2);
+            alpha_epi = m_UIAngles.txt_aepi->text().toDouble(&ok2);
             if(!ok2) SetDefaultAngleAlphaEpi();
-            beta_endo = m_UITags.txt_bendo->text().toDouble(&ok4);
+            beta_endo = m_UIAngles.txt_bendo->text().toDouble(&ok3);
             if(!ok3) SetDefaultAngleBetaEndo();
-            beta_epi = m_UITags.txt_bepi->text().toDouble(&ok3);
+            beta_epi = m_UIAngles.txt_bepi->text().toDouble(&ok4);
             if(!ok4) SetDefaultAngleBetaEpi();
         }
 
         cmd->DockerComputeFibres(dir, modName, lapApex, lapEpi, lapLV, lapRV, "biv", alpha_endo, alpha_epi, beta_endo, beta_epi);
     } else{
+        QMessageBox::warning(NULL, "Attention", "Laplace Solves files (.dat) not found or have the wrong name.");
         MITK_INFO(!lapsolveapex) << "[LAPSOLVES] Unsuccessful Apex";
         MITK_INFO(!lapsolveepi) << "[LAPSOLVES] Unsuccessful Epi";
         MITK_INFO(!lapsolvelv) << "[LAPSOLVES] Unsuccessful LV";
@@ -346,10 +348,10 @@ void FibresView::SetNames(){
     modPathName = dir + mitk::IOUtil::GetDirectorySeparator() + name + "_Mod";
     modName = name + "_Mod";
 
-    lapApex = dir + mitk::IOUtil::GetDirectorySeparator() + name + "_lap_apex_potential.dat";
-    lapEpi = dir + mitk::IOUtil::GetDirectorySeparator() + name + "_lap_epi_potential.dat";
-    lapLV = dir + mitk::IOUtil::GetDirectorySeparator() + name + "_lap_lv_potential.dat";
-    lapRV = dir + mitk::IOUtil::GetDirectorySeparator() + name + "_lap_rv_potential.dat";
+    lapApex = dir + mitk::IOUtil::GetDirectorySeparator() + modName + "_lap_apex_potential.dat";
+    lapEpi = dir + mitk::IOUtil::GetDirectorySeparator() + modName + "_lap_epi_potential.dat";
+    lapLV = dir + mitk::IOUtil::GetDirectorySeparator() + modName + "_lap_lv_potential.dat";
+    lapRV = dir + mitk::IOUtil::GetDirectorySeparator() + modName + "_lap_rv_potential.dat";
 
     QFile::copy(dir + mitk::IOUtil::GetDirectorySeparator() + name + ".lon", modPathName+".lon");
 
