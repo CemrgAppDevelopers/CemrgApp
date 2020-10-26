@@ -216,9 +216,10 @@ void powertransView::ConvertNII() {
     foreach (int idx, index) {
         path = directory + mitk::IOUtil::GetDirectorySeparator() + "dcm-" + QString::number(ctr++) + ".nii";
         successfulNitfi = CemrgCommonUtils::ConvertToNifti(nodes.at(idx)->GetData(), path);
-        if(successfulNitfi){
+        if (successfulNitfi) {
             this->GetDataStorage()->Remove(nodes.at(idx));
-        } else{
+        } else {
+            mitk::ProgressBar::GetInstance()->Progress(index.size());
             return;
         }
         mitk::ProgressBar::GetInstance()->Progress();
@@ -263,10 +264,11 @@ void powertransView::CropinIMGS() {
 
         //Cut selected image
         this->BusyCursorOn();
-        mitk::ProgressBar::GetInstance()->AddStepsToDo(2);
+        mitk::ProgressBar::GetInstance()->AddStepsToDo(1);
         mitk::Image::Pointer outputImage = CemrgCommonUtils::CropImage();
         path = directory + mitk::IOUtil::GetDirectorySeparator() + CemrgCommonUtils::GetImageNode()->GetName().c_str() + ".nii";
         mitk::IOUtil::Save(outputImage, path.toStdString());
+        mitk::ProgressBar::GetInstance()->Progress();
         this->BusyCursorOff();
 
         //Update datastorage
@@ -360,6 +362,7 @@ void powertransView::ResampIMGS() {
                 mitk::Image::Pointer outputImage = CemrgCommonUtils::Downsample(image, factor);
                 path = directory + mitk::IOUtil::GetDirectorySeparator() + imgNode->GetName().c_str() + ".nii";
                 mitk::IOUtil::Save(outputImage, path.toStdString());
+                mitk::ProgressBar::GetInstance()->Progress();
                 this->BusyCursorOff();
 
                 //Update datastorage
@@ -543,6 +546,7 @@ void powertransView::MapPowerTransLM() {
         //    mitk::IOUtil::Save(lmNode, path.toStdString());
     }
     //mitk::DataNode::Pointer lmNode = nodes.front();
+
     this->BusyCursorOn();
     mitk::ProgressBar::GetInstance()->AddStepsToDo(1);
     power = std::unique_ptr<CemrgPower>(new CemrgPower(directory, ribSpacing));
@@ -556,7 +560,6 @@ void powertransView::MapPowerTransLM() {
     CemrgCommonUtils::AddToStorage(surface, "PowerTransmitter", this->GetDataStorage());
     mitk::ProgressBar::GetInstance()->Progress();
     this->BusyCursorOff();
-    return;
 }
 
 // void powertransView::ConfirmSite() {
@@ -708,28 +711,28 @@ void powertransView::CalculatePower() {
     if (data) {
         mitk::Surface::Pointer surface = dynamic_cast<mitk::Surface*>(data.GetPointer());
         if (surface) {
+
             QString outstr="Calculated power on selected mesh for Rib spacing" + QString::number(ribSpacing);
             QMessageBox::information(NULL, "Attention", outstr);
+
             this->BusyCursorOn();
             mitk::ProgressBar::GetInstance()->AddStepsToDo(1);
             power = std::unique_ptr<CemrgPower>(new CemrgPower(directory, ribSpacing));
             mitk::Surface::Pointer outputEndoMesh = power->CalculateAcousticIntensity(surface);
-
             // Load in mesh
             //AddToStorage("PowerMap", outputEndoMesh);
             mitk::ProgressBar::GetInstance()->Progress();
-
             this->BusyCursorOff();
 
         } else {
             QMessageBox::warning(NULL, "Attention", "Please select input mesh from the Data Manager to calculate power!");
             return;
-        }
+        }//_if
+
     } else {
         QMessageBox::warning(NULL, "Attention", "Can't pick up node from data manager");
         return;
-    }
-
+    }//_if
 }
 
 void powertransView::MapAHATop() {
@@ -788,6 +791,7 @@ void powertransView::MapAHAfromInput() {
             inputs->deleteLater();
             return;
         }
+
         this->BusyCursorOn();
         mitk::ProgressBar::GetInstance()->AddStepsToDo(1);
         power = std::unique_ptr<CemrgPower>(new CemrgPower(directory, ribSpacing));
@@ -795,14 +799,17 @@ void powertransView::MapAHAfromInput() {
         CemrgCommonUtils::AddToStorage(outputAHAMesh, "PowerMap", this->GetDataStorage());
         mitk::ProgressBar::GetInstance()->Progress();
         this->BusyCursorOff();
-        return;
+
     } else if (dialogCode == QDialog::Rejected) {
+
         inputs->close();
         signalMapper->deleteLater();
         inputs->deleteLater();
         return;
+
     }//_if
 }
+
 void powertransView::MapAHA() {
 
     QList<mitk::DataNode::Pointer> nodes = this->GetDataManagerSelection();
@@ -852,18 +859,16 @@ void powertransView::MapAHA() {
 
         this->BusyCursorOn();
         mitk::ProgressBar::GetInstance()->AddStepsToDo(1);
-
         power = std::unique_ptr<CemrgPower>(new CemrgPower(directory, ribSpacing));
         mitk::Surface::Pointer outputAHAMesh = power->ReferenceAHA(pointset, surface);
         CemrgCommonUtils::AddToStorage(outputAHAMesh, "PowerMap", this->GetDataStorage());
         mitk::ProgressBar::GetInstance()->Progress();
         this->BusyCursorOff();
-        return;
-    }
-    else {
+
+    } else {
         QMessageBox::warning(NULL, "Attention", "2) Please select pointset and mesh for AHA mapping");
         return;
-    }
+    }//_if
 }
 
 void powertransView::Reset() {

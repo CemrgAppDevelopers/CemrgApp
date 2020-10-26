@@ -54,7 +54,7 @@ public:
     static mitk::Image::Pointer IsoImageResampleReorient(mitk::Image::Pointer image, bool resample=false, bool reorientToRAI=false);
     static mitk::Image::Pointer IsoImageResampleReorient(QString imPath, bool resample=false, bool reorientToRAI=false);
 
-    // convert2nifti
+    //Nifti Conversion Utils
     static bool ConvertToNifti(mitk::BaseData::Pointer oneNode, QString path2file, bool resample=false, bool reorient=false);
 
     //Mesh Utils
@@ -68,6 +68,9 @@ public:
     static void OriginalCoordinates(QString imagePath, QString pointPath, QString outputPath, double scaling=1000);
     static void CalculateCentreOfGravity(QString pointPath, QString elemPath, QString outputPath);
     static void RegionMapping(QString bpPath, QString pointPath, QString elemPath, QString outputPath);
+
+    //Tracking Utils
+    static void MotionTrackingReport(QString directory, int timePoints);
 
     //Generic
     static mitk::DataNode::Pointer AddToStorage(

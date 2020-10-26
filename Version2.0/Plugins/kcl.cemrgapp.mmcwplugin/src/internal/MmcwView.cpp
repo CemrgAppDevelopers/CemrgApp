@@ -221,9 +221,10 @@ void MmcwView::ConvertNII() {
         mitk::BaseData::Pointer data = nodes.at(idx)->GetData();
         path = directory + mitk::IOUtil::GetDirectorySeparator() + "dcm-" + QString::number(ctr++) + ".nii";
         successfulNitfi = CemrgCommonUtils::ConvertToNifti(nodes.at(idx)->GetData(), path);
-        if(successfulNitfi){
+        if (successfulNitfi) {
             this->GetDataStorage()->Remove(nodes.at(idx));
-        } else{
+        } else {
+            mitk::ProgressBar::GetInstance()->Progress(index.size());
             return;
         }
         mitk::ProgressBar::GetInstance()->Progress();
@@ -280,10 +281,11 @@ void MmcwView::CropinIMGS() {
 
         //Cut selected image
         this->BusyCursorOn();
-        mitk::ProgressBar::GetInstance()->AddStepsToDo(2);
+        mitk::ProgressBar::GetInstance()->AddStepsToDo(1);
         mitk::Image::Pointer outputImage = CemrgCommonUtils::CropImage();
         path = directory + mitk::IOUtil::GetDirectorySeparator() + CemrgCommonUtils::GetImageNode()->GetName().c_str() + ".nii";
         mitk::IOUtil::Save(outputImage, path.toStdString());
+        mitk::ProgressBar::GetInstance()->Progress();
         this->BusyCursorOff();
 
         //Update datastorage
@@ -299,15 +301,15 @@ void MmcwView::CropinIMGS() {
         if (reply == QMessageBox::Yes) {
 
             this->BusyCursorOn();
-            mitk::ProgressBar::GetInstance()->AddStepsToDo((timePoints-1)*2);
+            mitk::ProgressBar::GetInstance()->AddStepsToDo(timePoints-1);
             for (int i=1; i<timePoints; i++) {
 
                 mitk::Image::Pointer inputImage;
                 path = directory + mitk::IOUtil::GetDirectorySeparator() + "dcm-" + QString::number(i) + ".nii";
                 try {
-                    inputImage = dynamic_cast<mitk::Image*>(
-                                mitk::IOUtil::Load(path.toStdString()).front().GetPointer());
+                    inputImage = dynamic_cast<mitk::Image*>(mitk::IOUtil::Load(path.toStdString()).front().GetPointer());
                 } catch(const std::exception& e) {
+                    mitk::ProgressBar::GetInstance()->Progress();
                     continue;
                 }//_try
 
@@ -315,6 +317,7 @@ void MmcwView::CropinIMGS() {
                 CemrgCommonUtils::SetImageToCut(inputImage);
                 outputImage = CemrgCommonUtils::CropImage();
                 mitk::IOUtil::Save(outputImage, path.toStdString());
+                mitk::ProgressBar::GetInstance()->Progress();
 
             }//_for
             this->BusyCursorOff();
@@ -418,6 +421,7 @@ void MmcwView::ResampIMGS() {
                 mitk::Image::Pointer outputImage = CemrgCommonUtils::Downsample(image, factor);
                 path = directory + mitk::IOUtil::GetDirectorySeparator() + imgNode->GetName().c_str() + ".nii";
                 mitk::IOUtil::Save(outputImage, path.toStdString());
+                mitk::ProgressBar::GetInstance()->Progress();
                 this->BusyCursorOff();
 
                 //Update datastorage
@@ -433,21 +437,22 @@ void MmcwView::ResampIMGS() {
                 if (reply == QMessageBox::Yes) {
 
                     this->BusyCursorOn();
-                    mitk::ProgressBar::GetInstance()->AddStepsToDo(9);
+                    mitk::ProgressBar::GetInstance()->AddStepsToDo(timePoints-1);
                     for (int i=1; i<timePoints; i++) {
 
                         mitk::Image::Pointer inputImage;
                         path = directory + mitk::IOUtil::GetDirectorySeparator() + "dcm-" + QString::number(i) + ".nii";
                         try {
-                            inputImage = dynamic_cast<mitk::Image*>(
-                                        mitk::IOUtil::Load(path.toStdString()).front().GetPointer());
+                            inputImage = dynamic_cast<mitk::Image*>(mitk::IOUtil::Load(path.toStdString()).front().GetPointer());
                         } catch(const std::exception& e) {
+                            mitk::ProgressBar::GetInstance()->Progress();
                             continue;
                         }//_try
 
                         //Setup sampler
                         outputImage = CemrgCommonUtils::Downsample(inputImage, factor);
                         mitk::IOUtil::Save(outputImage, path.toStdString());
+                        mitk::ProgressBar::GetInstance()->Progress();
 
                     }//_for
                     this->BusyCursorOff();
@@ -574,7 +579,7 @@ void MmcwView::CreateSurf() {
         //_if
 
         this->BusyCursorOn();
-        mitk::ProgressBar::GetInstance()->AddStepsToDo(4);
+        mitk::ProgressBar::GetInstance()->AddStepsToDo(3);
         std::unique_ptr<CemrgCommandLine> cmd(new CemrgCommandLine());
         QString output = cmd->ExecuteSurf(directory, path, "close",iter, th, blur, smth);
         QMessageBox::information(NULL, "Attention", "Command Line Operations Finished!");
@@ -906,8 +911,9 @@ void MmcwView::Demoings() {
         sur4D->SetVtkPolyData(sur3D->GetVtkPolyData(), tS);
 
         mitk::ProgressBar::GetInstance()->Progress();
-    }
+    }//_for
 
+    //Fix bounds
     for(int i=0; i<timePoints; i++)
         sur4D->GetGeometry(i)->SetBounds(sur3D->GetGeometry()->GetBounds());
     this->BusyCursorOff();
@@ -917,6 +923,9 @@ void MmcwView::Demoings() {
 
     //Show the plugin
     this->GetSite()->GetPage()->ShowView("org.mitk.views.imagenavigator");
+
+    //Report generation
+    //CemrgCommonUtils::MotionTrackingReport(directory, timePoints);
 }
 
 void MmcwView::LandmarkSelection() {

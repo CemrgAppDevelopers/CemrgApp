@@ -57,7 +57,6 @@ PURPOSE.  See the above copyright notices for more information.
 #include <vtkPointLocator.h>
 #include <vtkTextActor.h>
 #include <vtkTextProperty.h>
-#include <vtkDecimatePro.h>
 #include <vtkGenericOpenGLRenderWindow.h>
 #include <vtkCellDataToPointData.h>
 #include <vtkLookupTable.h>

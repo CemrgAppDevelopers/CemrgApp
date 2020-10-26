@@ -196,11 +196,12 @@ void EASIView::ConvertNII() {
     foreach (int idx, index) {
         path = directory + mitk::IOUtil::GetDirectorySeparator() + "dcm-" + QString::number(ctr++) + ".nii";
         successfulNitfi = CemrgCommonUtils::ConvertToNifti(nodes.at(idx)->GetData(), path);
-        if(successfulNitfi){
+        if (successfulNitfi) {
             this->GetDataStorage()->Remove(nodes.at(idx));
-        } else{
+        } else {
+            mitk::ProgressBar::GetInstance()->Progress(index.size());
             return;
-        }
+        }//_if
         mitk::ProgressBar::GetInstance()->Progress();
     }//for
 
@@ -243,10 +244,11 @@ void EASIView::CropinIMGS() {
 
         //Cut selected image
         this->BusyCursorOn();
-        mitk::ProgressBar::GetInstance()->AddStepsToDo(2);
+        mitk::ProgressBar::GetInstance()->AddStepsToDo(1);
         mitk::Image::Pointer outputImage = CemrgCommonUtils::CropImage();
         path = directory + mitk::IOUtil::GetDirectorySeparator() + CemrgCommonUtils::GetImageNode()->GetName().c_str() + ".nii";
         mitk::IOUtil::Save(outputImage, path.toStdString());
+        mitk::ProgressBar::GetInstance()->Progress();
         this->BusyCursorOff();
 
         //Update datastorage
@@ -340,6 +342,7 @@ void EASIView::ResampIMGS() {
                 mitk::Image::Pointer outputImage = CemrgCommonUtils::Downsample(image, factor);
                 path = directory + mitk::IOUtil::GetDirectorySeparator() + imgNode->GetName().c_str() + ".nii";
                 mitk::IOUtil::Save(outputImage, path.toStdString());
+                mitk::ProgressBar::GetInstance()->Progress();
                 this->BusyCursorOff();
 
                 //Update datastorage
@@ -482,6 +485,7 @@ void EASIView::CreateMesh() {
                     cmd->SetDockerImage(QString("alonsojasl/meshtools3d:v1.0"));
                     QString output = cmd->ExecuteCreateCGALMesh(directory, "CGALMesh", templatePath);
                     QMessageBox::information(NULL, "Attention", "Command Line Operations Finished!");
+                    mitk::ProgressBar::GetInstance()->Progress();
 
                     //Prepare Visualisation
                     mitk::BaseData::Pointer meshData = mitk::IOUtil::Load(output.toStdString()).at(0);
@@ -494,9 +498,8 @@ void EASIView::CreateMesh() {
                         point[2] += origin.GetElement(2);
                         vtkGrid->GetPoints()->SetPoint(i, point);
                     }//_for
-
-                    mitk::ProgressBar::GetInstance()->Progress();
                     CemrgCommonUtils::AddToStorage(mitkVtkGrid, "CGALMesh", this->GetDataStorage());
+                    mitk::ProgressBar::GetInstance()->Progress();
                     this->BusyCursorOff();
 
                 } else if (dialogCode == QDialog::Rejected) {

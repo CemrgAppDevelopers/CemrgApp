@@ -64,6 +64,7 @@ PURPOSE.  See the above copyright notices for more information.
 #include <vtkDecimatePro.h>
 #include <vtkDataSetSurfaceFilter.h>
 #include <vtkTimerLog.h>
+#include <vtkPPolyDataNormals.h>
 
 // ITK
 #include <itkResampleImageFilter.h>
@@ -265,25 +266,25 @@ void AtrialScarView::ConvertNII() {
     bool successfulNitfi, resampleImage, reorientToRAI;
     resampleImage = true;
     reorientToRAI = true;
+
     this->BusyCursorOn();
     mitk::ProgressBar::GetInstance()->AddStepsToDo(index.size());
-
     foreach (int idx, index) {
         type = (ctr==0) ? "LGE":"MRA";
         path = directory + mitk::IOUtil::GetDirectorySeparator() + "dcm-" + type + "-" + seriesDscrps.at(idx).c_str() + ".nii";
         successfulNitfi = CemrgCommonUtils::ConvertToNifti(nodes.at(idx)->GetData(), path, resampleImage, reorientToRAI);
-        if(successfulNitfi){
+        if (successfulNitfi) {
             this->GetDataStorage()->Remove(nodes.at(idx));
             std::string key = "dicom.series.SeriesDescription";
             mitk::DataStorage::SetOfObjects::Pointer set = mitk::IOUtil::Load(path.toStdString(), *this->GetDataStorage());
             set->Begin().Value()->GetData()->GetPropertyList()->SetStringProperty(key.c_str(), seriesDscrps.at(idx).c_str());
             ctr++;
-        } else{
+        } else {
+            mitk::ProgressBar::GetInstance()->Progress(index.size());
             return;
-        }
+        }//_if
         mitk::ProgressBar::GetInstance()->Progress();
     }//for
-
     nodes.clear();
     this->BusyCursorOff();
 
@@ -701,21 +702,21 @@ void AtrialScarView::AutomaticAnalysis() {
             surfer->Update();
 
             MITK_INFO << "[...][9.2] Cleaning...";
-            vtkSmartPointer<vtkCleanPolyData> cleaner = vtkSmartPointer<vtkCleanPolyData>::New();
-            cleaner->SetInputConnection(surfer->GetOutputPort());
-            cleaner->Update();
+            vtkSmartPointer<vtkCleanPolyData> clean = vtkSmartPointer<vtkCleanPolyData>::New();
+            clean->SetInputConnection(surfer->GetOutputPort());
+            clean->Update();
 
             MITK_INFO << "[...][9.3] Largest region...";
             vtkSmartPointer<vtkPolyDataConnectivityFilter> lrgRegion = vtkSmartPointer<vtkPolyDataConnectivityFilter>::New();
-            lrgRegion->SetInputConnection(cleaner->GetOutputPort());
+            lrgRegion->SetInputConnection(clean->GetOutputPort());
             lrgRegion->SetExtractionModeToLargestRegion();
             lrgRegion->Update();
-            cleaner = vtkSmartPointer<vtkCleanPolyData>::New();
-            cleaner->SetInputConnection(lrgRegion->GetOutputPort());
-            cleaner->Update();
+            clean = vtkSmartPointer<vtkCleanPolyData>::New();
+            clean->SetInputConnection(lrgRegion->GetOutputPort());
+            clean->Update();
 
             MITK_INFO << ("[...][9.4] Saving to file: " + output2).toStdString();
-            LAShell->SetVtkPolyData(cleaner->GetOutput());
+            LAShell->SetVtkPolyData(clean->GetOutput());
             mitk::IOUtil::Save(LAShell, output2.toStdString());
 
             MITK_INFO << "[AUTOMATIC_ANALYSIS][10] Scar projection";
@@ -863,6 +864,7 @@ void AtrialScarView::SegmentIMGS() {
                     std::unique_ptr<CemrgCommandLine> cmd(new CemrgCommandLine());
                     cmd->SetUseDockerContainers(true);
                     QString cnnPath = cmd->DockerCemrgNetPrediction(mraPath);
+                    mitk::ProgressBar::GetInstance()->Progress();
 
                     //Clean prediction
                     using ImageTypeCHAR = itk::Image<short, 3>;
@@ -885,7 +887,6 @@ void AtrialScarView::SegmentIMGS() {
                     mitk::IOUtil::Save(segImage, cnnPath.toStdString());
                     mitk::IOUtil::Load(cnnPath.toStdString(), *this->GetDataStorage());
                     remove(mraPath.toStdString().c_str());
-
                     fileName = "LA.nii";
                     QMessageBox::information(NULL, "Attention", "Command Line Operations Finished!");
                     mitk::ProgressBar::GetInstance()->Progress();
@@ -1025,6 +1026,7 @@ void AtrialScarView::Register() {
             cmd->SetUseDockerContainers(_useDockerInPlugin);
             cmd->ExecuteRegistration(directory, lge, mra);
             QMessageBox::information(NULL, "Attention", "Command Line Operations Finished!");
+            mitk::ProgressBar::GetInstance()->Progress();
             this->BusyCursorOff();
 
         } else {
@@ -1089,6 +1091,7 @@ void AtrialScarView::Transform() {
                 cmd->SetUseDockerContainers(_useDockerInPlugin);
                 cmd->ExecuteTransformation(directory, pathTemp.right(8), regFileName);
                 QMessageBox::information(NULL, "Attention", "Command Line Operations Finished!");
+                mitk::ProgressBar::GetInstance()->Progress();
                 this->BusyCursorOff();
 
                 //Load the new segementation
@@ -1198,7 +1201,7 @@ void AtrialScarView::CreateSurf() {
                 this->BusyCursorOn();
                 pathTemp = directory + mitk::IOUtil::GetDirectorySeparator() + "temp.nii";
                 mitk::IOUtil::Save(image, pathTemp.toStdString());
-                mitk::ProgressBar::GetInstance()->AddStepsToDo(4);
+                mitk::ProgressBar::GetInstance()->AddStepsToDo(3);
                 std::unique_ptr<CemrgCommandLine> cmd(new CemrgCommandLine());
                 cmd->SetUseDockerContainers(_useDockerInPlugin);
                 path = cmd->ExecuteSurf(directory, pathTemp, "close", iter, th, blur, smth);
@@ -1505,13 +1508,10 @@ void AtrialScarView::ScarMap() {
                     //Projection
                     scar->SetScarSegImage(scarSegImg);
                     mitk::Surface::Pointer shell = scar->Scar3D(directory.toStdString(), image);
-                    mitk::DataNode::Pointer node = CemrgCommonUtils::AddToStorage(
-                                shell, (meType + "Scar3D").toStdString(), this->GetDataStorage());
-                    mitk::ProgressBar::GetInstance()->Progress();
+                    mitk::DataNode::Pointer node = CemrgCommonUtils::AddToStorage(shell, (meType + "Scar3D").toStdString(), this->GetDataStorage());
 
                     MITK_INFO << "Saving debug scar map labels.";
                     scar->SaveScarDebugImage(meType + "_debugSCAR.nii", directory);
-                    // m_Controls.button_debugscar->setVisible(true);
 
                     //Check to remove the previous mesh node
                     sob = this->GetDataStorage()->GetAll();
@@ -1519,6 +1519,7 @@ void AtrialScarView::ScarMap() {
                         if (nodeIt->Value()->GetName().find("-Mesh") != nodeIt->Value()->GetName().npos)
                             this->GetDataStorage()->Remove(nodeIt->Value());
 
+                    //LUT setup
                     mitk::LookupTable::Pointer scarLut = mitk::LookupTable::New();
                     vtkSmartPointer<vtkLookupTable> lut = vtkSmartPointer<vtkLookupTable>::New();
                     lut->SetTableRange(0, scar->GetMaxScalar());
@@ -1538,6 +1539,7 @@ void AtrialScarView::ScarMap() {
                     QString path = directory + mitk::IOUtil::GetDirectorySeparator() + name + "-" + meType + "Scar.vtk";
                     mitk::IOUtil::Save(shell, path.toStdString());
 
+                    mitk::ProgressBar::GetInstance()->Progress();
                     this->BusyCursorOff();
                     inputs->deleteLater();
 

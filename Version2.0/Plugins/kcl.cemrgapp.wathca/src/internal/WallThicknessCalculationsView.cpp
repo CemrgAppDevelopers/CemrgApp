@@ -64,6 +64,8 @@ PURPOSE.  See the above copyright notices for more information.
 //VTK
 #include <vtkDecimatePro.h>
 #include <vtkFieldData.h>
+#include <vtkCleanPolyData.h>
+#include <vtkPolyDataNormals.h>
 
 //ITK
 #include <itkAddImageFilter.h>
@@ -186,9 +188,10 @@ void WallThicknessCalculationsView::ConvertNII() {
     foreach (mitk::DataNode::Pointer node, nodes) {
         path = directory + mitk::IOUtil::GetDirectorySeparator() + "dcm-" + QString::number(ctr++) + ".nii";
         successfulNitfi = CemrgCommonUtils::ConvertToNifti(node->GetData(), path);
-        if(successfulNitfi){
+        if (successfulNitfi) {
             this->GetDataStorage()->Remove(node);
-        } else{
+        } else {
+            mitk::ProgressBar::GetInstance()->Progress(nodes.size());
             return;
         }
         mitk::ProgressBar::GetInstance()->Progress();
@@ -232,10 +235,11 @@ void WallThicknessCalculationsView::CropIMGS() {
 
         //Cut selected image
         this->BusyCursorOn();
-        mitk::ProgressBar::GetInstance()->AddStepsToDo(2);
+        mitk::ProgressBar::GetInstance()->AddStepsToDo(1);
         mitk::Image::Pointer outputImage = CemrgCommonUtils::CropImage();
         path = directory + mitk::IOUtil::GetDirectorySeparator() + CemrgCommonUtils::GetImageNode()->GetName().c_str() + ".nii";
         mitk::IOUtil::Save(outputImage, path.toStdString());
+        mitk::ProgressBar::GetInstance()->Progress();
         this->BusyCursorOff();
 
         //Update datastorage
@@ -329,6 +333,7 @@ void WallThicknessCalculationsView::ResampIMGS() {
                 mitk::Image::Pointer outputImage = CemrgCommonUtils::Downsample(image, factor);
                 path = directory + mitk::IOUtil::GetDirectorySeparator() + imgNode->GetName().c_str() + ".nii";
                 mitk::IOUtil::Save(outputImage, path.toStdString());
+                mitk::ProgressBar::GetInstance()->Progress();
                 this->BusyCursorOff();
 
                 //Update datastorage
@@ -569,10 +574,11 @@ void WallThicknessCalculationsView::MorphologyAnalysis() {
                 this->BusyCursorOn();
                 QString path1 = directory + mitk::IOUtil::GetDirectorySeparator() + "bp.nii";
                 mitk::IOUtil::Save(bp, path1.toStdString());
-                mitk::ProgressBar::GetInstance()->AddStepsToDo(4);
+                mitk::ProgressBar::GetInstance()->AddStepsToDo(3);
                 std::unique_ptr<CemrgCommandLine> cmd1(new CemrgCommandLine());
                 QString output = cmd1->ExecuteSurf(directory, path1, "close", iter, th, blur, smth);
                 QMessageBox::information(NULL, "Attention", "Command Line Operations (Bloodpool) Finished!");
+
                 //Decimate the mesh to visualise
                 mitk::Surface::Pointer shell = mitk::IOUtil::Load<mitk::Surface>(output.toStdString());
                 vtkSmartPointer<vtkDecimatePro> deci = vtkSmartPointer<vtkDecimatePro>::New();
@@ -580,21 +586,48 @@ void WallThicknessCalculationsView::MorphologyAnalysis() {
                 deci->SetTargetReduction(ds);
                 deci->PreserveTopologyOn();
                 deci->Update();
-                shell->SetVtkPolyData(deci->GetOutput());
+                vtkSmartPointer<vtkCleanPolyData> cleaner1 = vtkSmartPointer<vtkCleanPolyData>::New();
+                cleaner1->SetInputConnection(deci->GetOutputPort());
+                cleaner1->PieceInvariantOn();
+                cleaner1->ConvertLinesToPointsOn();
+                cleaner1->ConvertStripsToPolysOn();
+                cleaner1->PointMergingOn();
+                cleaner1->Update();
+                vtkSmartPointer<vtkPolyDataNormals> computeNormals1 = vtkSmartPointer<vtkPolyDataNormals>::New();
+                computeNormals1->SetInputConnection(cleaner1->GetOutputPort());
+                computeNormals1->SetFeatureAngle(360.0f);
+                computeNormals1->AutoOrientNormalsOn();
+                computeNormals1->FlipNormalsOff();
+                computeNormals1->Update();
+                shell->SetVtkPolyData(computeNormals1->GetOutput());
                 mitk::Surface::Pointer surfLA = shell->Clone();
                 QString path2 = directory + mitk::IOUtil::GetDirectorySeparator() + "ap.nii";
                 mitk::IOUtil::Save(ap, path2.toStdString());
-                mitk::ProgressBar::GetInstance()->AddStepsToDo(4);
+                mitk::ProgressBar::GetInstance()->AddStepsToDo(3);
                 std::unique_ptr<CemrgCommandLine> cmd2(new CemrgCommandLine());
                 output = cmd2->ExecuteSurf(directory, path2, "close", iter, th, blur, smth);
                 QMessageBox::information(NULL, "Attention", "Command Line Operations (Appendage) Finished!");
+
                 //Decimate the mesh to visualise
                 shell = mitk::IOUtil::Load<mitk::Surface>(output.toStdString());
                 deci->SetInputData(shell->GetVtkPolyData());
                 deci->SetTargetReduction(ds);
                 deci->PreserveTopologyOn();
                 deci->Update();
-                shell->SetVtkPolyData(deci->GetOutput());
+                vtkSmartPointer<vtkCleanPolyData> cleaner2 = vtkSmartPointer<vtkCleanPolyData>::New();
+                cleaner2->SetInputConnection(deci->GetOutputPort());
+                cleaner2->PieceInvariantOn();
+                cleaner2->ConvertLinesToPointsOn();
+                cleaner2->ConvertStripsToPolysOn();
+                cleaner2->PointMergingOn();
+                cleaner2->Update();
+                vtkSmartPointer<vtkPolyDataNormals> computeNormals2 = vtkSmartPointer<vtkPolyDataNormals>::New();
+                computeNormals2->SetInputConnection(cleaner2->GetOutputPort());
+                computeNormals2->SetFeatureAngle(360.0f);
+                computeNormals2->AutoOrientNormalsOn();
+                computeNormals2->FlipNormalsOff();
+                computeNormals2->Update();
+                shell->SetVtkPolyData(computeNormals2->GetOutput());
                 mitk::Surface::Pointer surfAP = shell->Clone();
                 this->BusyCursorOff();
 
@@ -806,6 +839,7 @@ void WallThicknessCalculationsView::ThicknessCalculator() {
                     cmd->SetUseDockerContainersOff();
                     cmd->ExecuteCreateCGALMesh(directory, meshName, templatePath);
                     QMessageBox::information(NULL, "Attention", "Command Line Operations Finished!");
+                    mitk::ProgressBar::GetInstance()->Progress();
                     this->BusyCursorOff();
 
                 } else if (dialogCode == QDialog::Rejected) {

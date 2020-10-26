@@ -182,6 +182,7 @@ void powertransViewPlot::PlotData() {
     mitk::ProgressBar::GetInstance()->AddStepsToDo(1);
 
     //Define the reference mesh
+    mitk::Surface::Pointer refSurf;
     int segRatios[3] = {bas, mid, api};
     int pacingSegRatios[3] = {17, 33, 55}; // This give the AHA region from 50 - 50+1/3 in middle - Ie putting pacing site at 2/3 height
     strain = std::unique_ptr<CemrgStrains>(new CemrgStrains(directory, refMshNo));
@@ -192,12 +193,12 @@ void powertransViewPlot::PlotData() {
         mitk::ProgressBar::GetInstance()->Progress();
         return;
     }
-    mitk::Surface::Pointer refSurf;
 
     //Calculate y values of the plots
     flatPlotScalars.clear();
     plotValueVectors.clear();
     std::string plotType = m_Controls.comboBox->currentText().toStdString();
+
     if (plotType.compare("Squeez") == 0) {
         refSurf = strain->ReferenceAHA(lmNode, segRatios, false);
         for (int i=0; i<noFrames*smoothness; i++) {
@@ -251,6 +252,7 @@ void powertransViewPlot::PlotData() {
     //Visualise AHA plots
     HandleBullPlot(false);
     ColourAHASegments(m_Controls.horizontalSlider->value());
+
     //Visualise the curves plot
     HandleCurvPlot();
 
@@ -267,8 +269,6 @@ void powertransViewPlot::PlotData() {
             this->GetDataStorage()->Remove(nodeIt->Value());
         if (nodeIt->Value()->GetName().compare("Guideline 3") == 0)
             this->GetDataStorage()->Remove(nodeIt->Value());
-        //if (nodeIt->Value()->GetName().compare("Guideline 4") == 0)
-        //    this->GetDataStorage()->Remove(nodeIt->Value());
     }//_for
     mitk::DataNode::Pointer node = mitk::DataNode::New();
     node->SetProperty("scalar visibility", mitk::BoolProperty::New(true));
@@ -283,17 +283,6 @@ void powertransViewPlot::PlotData() {
         gNode->SetName("Guideline "+ std::to_string(i+1));
         gNode->SetData(guidelines.at(i));
         this->GetDataStorage()->Add(gNode, node);
-    }
-
-    /**
-     * STRAIN TEST
-     **/
-    if (false) {
-        for (unsigned int i=0; i<strain->temporaries.size(); i++) {
-            mitk::DataNode::Pointer aNode = mitk::DataNode::New();
-            aNode->SetData(strain->temporaries.at(i));
-            this->GetDataStorage()->Add(aNode, node);
-        }
     }
 
     this->BusyCursorOff();
