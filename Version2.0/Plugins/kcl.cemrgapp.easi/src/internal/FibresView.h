@@ -25,10 +25,17 @@ PURPOSE.  See the above copyright notices for more information.
 #include <vtkIdList.h>
 #include <vtkActor.h>
 #include <vtkDijkstraGraphGeodesicPath.h>
+#include <vtkStreamTracer.h>
+#include <vtkTubeFilter.h>
+#include <vtkPointSource.h>
 #include <string>
 #include <sstream>
 #include <CemrgAtriaClipper.h>
 #include <CemrgScarAdvanced.h>
+#include <mitkUnstructuredGrid.h>
+#include <vtkUnstructuredGrid.h>
+#include <vtkUnstructuredGridReader.h>
+
 #include "QmitkRenderWindow.h"
 #include "mitkCommon.h"
 #include "mitkDataStorage.h"
@@ -59,15 +66,35 @@ public:
   static void SetDirectoryFile(const QString directory, const QString basename);
 
   void SetNames(); // sets all names for calculations
-  QString CreateSurfExtractOp(std::vector<int> vect, QStringList joinings);
+  void ExtractSurfacesProcess();
+  void LaplaceSolvesProcess();
+  void GenerateFibresProcess();
 
-  inline void SetDefaultTagLVendo(){tag_lvendo = 10;};
-  inline void SetDefaultTagLVepi(){tag_lvepi = 1;};
-  inline void SetDefaultTagLVbase(){tag_lvbase = 2;};
-  inline void SetDefaultTagRVendo(){tag_rvendo = 30;};
-  inline void SetDefaultTagRVepi(){tag_rvepi = 5;};
-  inline void SetDefaultTagRVbase(){tag_rvbase = 4;};
-  inline void SetDefaultTagApex(){tag_apex = 3;};
+  // helper functions
+  QString CreateSurfExtractOp(QStringList vect, QStringList joinings);
+  std::vector<double> ReadInScalarField(QString fieldPath);
+  std::vector<double> ReadInVectorField(QString fieldPath);
+  void CheckTag(QString someTag, QString tagname);
+  bool IsPreprocessingDone();
+  bool IsExtractSurfDone();
+  bool IsLaplaceSolvesDone();
+  bool IsFibresGenerationDone();
+
+  void FinishedProcess(QString finishedProcessName, QString xtramessage="");
+
+  // visualiser functions
+  void ScalarFieldSelector(int vtkIndex);
+  void SetStreamTracerForFibres();
+
+  // inline setters
+  void SetDefaultTag(QString tagname);
+  inline void SetDefaultTagLVendo(){tag_lvendo = "10";};
+  inline void SetDefaultTagLVepi(){tag_lvepi = "1";};
+  inline void SetDefaultTagLVbase(){tag_lvbase = "2";};
+  inline void SetDefaultTagRVendo(){tag_rvendo = "30";};
+  inline void SetDefaultTagRVepi(){tag_rvepi = "5";};
+  inline void SetDefaultTagRVbase(){tag_rvbase = "4";};
+  inline void SetDefaultTagApex(){tag_apex = "3";};
 
   inline void SetDefaultAngleAlphaEndo(){alpha_endo = 40;};
   inline void SetDefaultAngleAlphaEpi(){alpha_epi = -50;};
@@ -82,8 +109,9 @@ protected slots:
     void GenerateFibres(); //btn4
 
     // ui slots
-    void CancelFibres(); //btnX
+    void CheckForVtk(); //btnX
     void Visualise(); //btnY
+    void VisualiseFibres(); //btnZ
 
 protected:
     virtual void OnSelectionChanged(
@@ -96,21 +124,35 @@ protected:
     Ui::FibresViewUIAngles m_UIAngles;
 
 private:
+    void PreSurf();
+    void Visualiser(int vtkIndex=0);
+
     static QString basename; // normally 'mesh'
     static QString directory; // working directory passed from EASI view
 
     QString dir, name;
     QString elemFull, ptsFull, shiftPts, cogPts, cavElem;
     QString modPathName, modName;
+    int nPts, nElem;
+    std::vector<int> meshAttributes;
+
     QString surfApex, surfBase, surfEpi, surfLVendo, surfRVendo;
     QString lapApex, lapEpi, lapLV, lapRV;
     QString imagePath, dilatedCavPath;
-    int tag_lvendo, tag_lvepi, tag_lvbase, tag_rvendo, tag_rvepi, tag_rvbase, tag_apex;
+    QString fibresFile, vtkPath;
+    QString tag_lvendo, tag_lvepi, tag_lvbase, tag_rvendo, tag_rvepi, tag_rvbase, tag_apex;
     double alpha_endo, alpha_epi, beta_endo, beta_epi;
     bool preprocessDone, extractSurfaceDone, laplaceSolvesDone, fibresDone;
+    bool fibresVtkCreated;
 
     vtkSmartPointer<vtkRenderer> renderer;
-    vtkSmartPointer<vtkActor> surfActor;
+    vtkSmartPointer<vtkActor> meshActor;
+
+    // mitk::UnstructuredGrid::Pointer mitkVtkGrid;
+    // vtkSmartPointer<vtkUnstructuredGrid> vtkGrid;
+    vtkSmartPointer<vtkUnstructuredGridReader> reader;
+    vtkSmartPointer<vtkTubeFilter> tubeFilter;
+
 };
 
 #endif // FibresView_h

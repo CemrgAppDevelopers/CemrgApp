@@ -59,14 +59,24 @@
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout_2">
      <item>
+      <widget class="QComboBox" name="combo_selector"/>
+     </item>
+     <item>
       <widget class="QPushButton" name="btnY_visualise">
        <property name="text">
-        <string>Visualise</string>
+        <string>Visualise Scalar field</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="btnX_cancel">
+      <widget class="QPushButton" name="btnZ_visualiseFibres">
+       <property name="text">
+        <string>Visualise Fibres</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnX_checkVtk">
        <property name="maximumSize">
         <size>
          <width>119</width>
@@ -74,7 +84,7 @@
         </size>
        </property>
        <property name="text">
-        <string>Cancel</string>
+        <string>Enable Visualisation</string>
        </property>
       </widget>
      </item>

@@ -103,7 +103,7 @@ QString CemrgCommandLine::ExecuteSurf(QString dir, QString segPath, QString morp
 
     mitk::ProgressBar::GetInstance()->Progress();
     if (QString::compare(closeOutputPath, "ERROR_IN_PROCESSING")!=0) {
-
+        ExecuteTouch(dir + mitk::IOUtil::GetDirectorySeparator() + "segmentation.vtk");
         surfOutputPath = ExecuteExtractSurface(dir, closeOutputPath, "segmentation.vtk", th, blur);
         mitk::ProgressBar::GetInstance()->Progress();
 
@@ -180,7 +180,7 @@ QString CemrgCommandLine::ExecuteCreateCGALMesh(QString dir, QString outputName,
             arguments << "-out_dir" << outputDirectory;
             arguments << "-out_name" << outputName;
 
-        } else {            
+        } else {
             QMessageBox::warning(NULL, "Please check the LOG", "MESHTOOLS3D libraries not found");
             MITK_WARN << "MESHTOOLS3D libraries not found. Please make sure the M3DLib folder is inside the directory:\n\t" + mitk::IOUtil::GetProgramPath();
         }//_if
@@ -363,7 +363,7 @@ void CemrgCommandLine::ExecuteRegistration(QString dir, QString fixed, QString m
                 mitk::IOUtil::GetDirectorySeparator() + QString("CemrgApp") +
                 mitk::IOUtil::GetDirectorySeparator() + QString("MLib");
 #endif
-        executableName = executablePath + mitk::IOUtil::GetDirectorySeparator() + commandName;                
+        executableName = executablePath + mitk::IOUtil::GetDirectorySeparator() + commandName;
         QDir apathd(executablePath);
 
         if (apathd.exists()) {

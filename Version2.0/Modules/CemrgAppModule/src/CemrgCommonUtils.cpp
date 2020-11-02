@@ -787,9 +787,9 @@ void CemrgCommonUtils::CalculateCentreOfGravity(QString pointPath, QString elemP
     		y /= 4.0 * 1000;
     		z /= 4.0 * 1000;
 
-            outputFileWrite << x << std::endl;
-            outputFileWrite << y << std::endl;
-            outputFileWrite << z << std::endl;
+            outputFileWrite << std::fixed << std::setprecision(6) << x << std::endl;
+            outputFileWrite << std::fixed << std::setprecision(6) << y << std::endl;
+            outputFileWrite << std::fixed << std::setprecision(6) << z << std::endl;
 
     	}
     	MITK_INFO << "Completed input .elem file";
@@ -948,4 +948,230 @@ void CemrgCommonUtils::RegionMapping(QString bpPath, QString pointPath, QString 
         MITK_ERROR(QFileInfo::exists(bpPath)) << ("File does not exist: " + bpPath).toStdString();
         MITK_ERROR(QFileInfo::exists(pointPath)) << ("File does not exist: " + pointPath).toStdString();
     }
+}
+
+void CemrgCommonUtils::NormaliseFibreFiles(QString fibresPath, QString outputPath){
+    MITK_INFO << "Normalise fibres file";
+    std::ifstream ffibres(fibresPath.toStdString());
+    std::ofstream fo(outputPath.toStdString());
+
+    int numVect;
+    ffibres >> numVect;
+    MITK_INFO << ("Number of vectors per line in file: " + QString::number(numVect)).toStdString();
+
+    double x,y,z;
+    double norm;
+    // prime read
+    ffibres >> x;
+    ffibres >> y;
+    ffibres >> z;
+    while (!ffibres.eof()) {
+        for (int i=0; i<numVect; i++) {
+            norm=sqrt(x*x + y*y +z*z);
+            if(norm>0){
+                fo <<std::fixed << std::setprecision(8) << x/norm << " " << y/norm << " " << z/norm << " ";
+            } else{
+                fo <<std::fixed << std::setprecision(8) << x << " " << y << " " << z << " ";
+            }
+            ffibres >> x;
+            ffibres >> y;
+            ffibres >> z;
+        }
+        fo << std::endl;
+    }
+    ffibres.close();
+    fo.close();
+}
+
+void CemrgCommonUtils::CarpToVtk(QString elemPath, QString ptsPath, QString outputPath, bool saveRegionlabels){
+    std::ofstream VTKFile;
+    std::ifstream ptsFileRead, elemFileRead;
+    short int precision=12;
+    short int numColsLookupTable=1;
+
+    VTKFile.open(outputPath.toStdString());
+    MITK_INFO << "Writing vtk file header.";
+    VTKFile << "# vtk DataFile Version 4.0"<< std::endl;
+    VTKFile << "vtk output"<< std::endl;
+    VTKFile << "ASCII" << std::endl;
+    VTKFile << "DATASET UNSTRUCTURED_GRID" << std::endl;
+
+    int nElem, nPts;
+    ptsFileRead.open(ptsPath.toStdString());
+    ptsFileRead >> nPts;
+
+    MITK_INFO << "Setting geometry - Points";
+    VTKFile<<"POINTS "<< nPts <<" float"<<std::endl;
+    double x, y, z;
+    for (int ix = 0; ix < nPts; ix++) {
+        ptsFileRead >> x;
+        ptsFileRead >> y;
+        ptsFileRead >> z;
+
+        VTKFile<<std::setprecision(precision)<<x<<" "<<y<<" "<<z<<std::endl;
+    }
+    ptsFileRead.close();
+
+    MITK_INFO << "Setting geometry - Tetrahedral elements";
+    elemFileRead.open(elemPath.toStdString());
+    elemFileRead >> nElem;
+    std::string type;
+    int p0, p1, p2, p3, region;
+    std::vector<double> regionVector(nElem);
+    VTKFile << "CELLS " << nElem << " " << (4+1)*nElem << std::endl;
+    for (int ix = 0; ix < nElem; ix++) {
+        elemFileRead >> type;
+        elemFileRead >> p0;
+        elemFileRead >> p1;
+        elemFileRead >> p2;
+        elemFileRead >> p3;
+        elemFileRead >> regionVector[ix];
+
+        VTKFile << "4 " << p0 << " " << p1 << " " << p2 << " " << p3 << std::endl;
+    }
+
+    VTKFile <<"CELL_TYPES "<< nElem << " ";
+    for (int ix = 0; ix < nElem; ix++) {
+        VTKFile << "10"; // type for tetrahedral mesh
+        if(((1+ix)%numColsLookupTable) && (ix<(nElem-1))) {
+            VTKFile << " ";
+        } else{
+            VTKFile << std::endl;
+        }
+    }
+    elemFileRead.close();
+    VTKFile.close();
+    if(saveRegionlabels){
+        AppendScalarFieldToVtk(outputPath, "region_labels", "CELL",  regionVector);
+    }
+}
+
+void CemrgCommonUtils::RectifyFileValues(QString pathToFile, double minVal, double maxVal){
+    QFileInfo fi(pathToFile);
+    QString copyName = fi.absolutePath() + mitk::IOUtil::GetDirectorySeparator() + fi.baseName() + "_copy." + fi.completeSuffix();
+    MITK_INFO << "Copying path name";
+    QFile::rename(pathToFile, copyName);
+
+    std::ifstream readInFile(copyName.toStdString());
+    std::ofstream writeOutFile(pathToFile.toStdString());
+
+    double valueIn, valueOut;
+    int precision = 16;
+    int count = 0;
+    writeOutFile << std::scientific;
+    MITK_INFO << "Rectifying file.";
+    while (!readInFile.eof()) {
+        valueIn = -1;
+        readInFile >> valueIn;
+        if(valueIn > maxVal){
+            valueOut = maxVal;
+        } else if(valueIn < minVal){
+            valueOut = minVal;
+        } else {
+            valueOut = valueIn;
+        }
+        if(valueIn != -1){
+            writeOutFile << std::setprecision(precision) << valueOut << std::endl;
+            count++;
+        }
+    }
+    MITK_INFO << ("Finished rectifying file with :" + QString::number(count) + " points.").toStdString();
+    readInFile.close();
+    writeOutFile.close();
+
+    QFile::remove(copyName);
+}
+
+int CemrgCommonUtils::GetTotalFromCarpFile(QString pathToFile, bool totalAtTop){
+    int total=-1;
+    std::ifstream fi(pathToFile.toStdString());
+    if(totalAtTop){
+        fi >> total;
+    } else{
+        int count;
+        double value;
+        count=0;
+        while (!fi.eof()){
+            value = -1;
+            fi >> value;
+            count++;
+        }
+        total = count;
+        total -= (value==-1) ? 1 : 0; // checks if last line in file is empty
+    }
+    fi.close();
+    return total;
+}
+
+std::vector<double> CemrgCommonUtils::ReadScalarField(QString pathToFile){
+    std::ifstream fi(pathToFile.toStdString());
+    int n = CemrgCommonUtils::GetTotalFromCarpFile(pathToFile, false);
+    std::vector<double> field(n, 0.0);
+
+    for (int ix = 0; ix < n; ix++) {
+        if(fi.eof()){
+            MITK_INFO << "File finished prematurely.";
+            break;
+        }
+        fi >> field[ix];
+    }
+    fi.close();
+
+    return field;
+}
+
+void CemrgCommonUtils::AppendScalarFieldToVtk(QString vtkPath, QString fieldName, QString typeData, std::vector<double> field, bool setHeader){
+    std::ofstream VTKFile;
+    short int precision=12;
+    short int numColsLookupTable=1;
+
+    VTKFile.open(vtkPath.toStdString(), std::ios_base::app);
+    int fieldSize=field.size();
+
+    if(setHeader){
+        MITK_INFO << "Setting POINT_DATA header.";
+        VTKFile << typeData.toStdString() << "_DATA " << fieldSize << std::endl;
+    }
+
+    MITK_INFO << ("Appending scalar field <<" + fieldName + ">> to VTK file.").toStdString();
+    VTKFile << "SCALARS " << fieldName.toStdString() << " FLOAT " << numColsLookupTable<< " " <<std::endl;
+    VTKFile << "LOOKUP_TABLE default " << std::endl;
+
+    for (int ix = 0; ix < fieldSize; ix++) {
+        VTKFile << std::setprecision(precision) << field.at(ix);
+        if(((1+ix)%numColsLookupTable) && (ix<fieldSize-1)){
+          VTKFile<<" ";
+        } else{
+          VTKFile<<std::endl;
+        }
+    }
+    VTKFile.close();
+}
+
+void CemrgCommonUtils::AppendVectorFieldToVtk(QString vtkPath, QString fieldName, QString dataType,  std::vector<double> field, bool setHeader){
+    std::ofstream VTKFile;
+    short int precision=12;
+    // short int numColsLookupTable=1;
+
+    VTKFile.open(vtkPath.toStdString(), std::ios_base::app);
+    int nElem=field.size()/3;
+
+    if(setHeader){
+        MITK_INFO << "Setting CELL_DATA header.";
+        VTKFile << dataType.toStdString() << "_DATA " << nElem << std::endl;
+    }
+
+    MITK_INFO << ("Appending vector field <<" + fieldName + ">> to VTK file.").toStdString();
+    VTKFile << "VECTORS " << fieldName.toStdString() << " FLOAT " << std::endl;
+
+    double x,y,z;
+    for (int ix = 0; ix < nElem; ix++) {
+        x = field[ix + 0*nElem];
+        y = field[ix + 1*nElem];
+        z = field[ix + 2*nElem];
+
+        VTKFile << std::setprecision(precision)<<x<<" "<<y<<" "<<z<<std::endl;
+    }
+
+    VTKFile.close();
 }

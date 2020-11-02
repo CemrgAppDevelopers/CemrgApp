@@ -68,6 +68,13 @@ public:
     static void OriginalCoordinates(QString imagePath, QString pointPath, QString outputPath, double scaling=1000);
     static void CalculateCentreOfGravity(QString pointPath, QString elemPath, QString outputPath);
     static void RegionMapping(QString bpPath, QString pointPath, QString elemPath, QString outputPath);
+    static void NormaliseFibreFiles(QString fibresPath, QString outputPath);
+    static void RectifyFileValues(QString pathToFile, double minVal=0.0, double maxVal=1.0);
+    static int GetTotalFromCarpFile(QString pathToFile, bool totalAtTop=true);
+    static std::vector<double> ReadScalarField(QString pathToFile);
+    static void CarpToVtk(QString elemPath, QString ptsPath, QString outputPath, bool saveRegionlabels=true);
+    static void AppendScalarFieldToVtk(QString vtkPath, QString fieldName, QString typeData, std::vector<double> field, bool setHeader=true);
+    static void AppendVectorFieldToVtk(QString vtkPath, QString fieldName, QString typeData, std::vector<double> field, bool setHeader=true);
 
     //Tracking Utils
     static void MotionTrackingReport(QString directory, int timePoints);

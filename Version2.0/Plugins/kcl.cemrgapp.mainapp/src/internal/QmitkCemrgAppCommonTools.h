@@ -49,6 +49,8 @@ public:
 
     static const std::string VIEW_ID;
 
+    
+
 protected:
 
     virtual void CreateQtPartControl(QWidget *parent) override;
@@ -61,6 +63,7 @@ protected:
     /// \brief Called when the user clicks the GUI button
     void LoadMesh();
     void ConvertToCarto();
+    void ConvertCarpToVtk();
 
 };
 
