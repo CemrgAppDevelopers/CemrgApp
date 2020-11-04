@@ -65,7 +65,7 @@
    <item>
     <widget class="QLineEdit" name="lineEdit_3">
      <property name="placeholderText">
-      <string>Blur (default = 3)</string>
+      <string>Blur (default = 0)</string>
      </property>
     </widget>
    </item>
@@ -75,7 +75,7 @@
       <string/>
      </property>
      <property name="placeholderText">
-      <string>Smooth (default = 40)</string>
+      <string>Smooth (default = 10)</string>
      </property>
     </widget>
    </item>

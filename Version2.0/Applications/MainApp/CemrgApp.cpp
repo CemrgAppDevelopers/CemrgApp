@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
 
     mitk::BaseApplication myApp(argc, argv);
     myApp.setSingleMode(true);
-    myApp.setApplicationName("CemrgApp v2.0");
+    myApp.setApplicationName("CemrgApp v2.1");
     myApp.setOrganizationName("KCL");
 
     // -------------------------------------------------------------------

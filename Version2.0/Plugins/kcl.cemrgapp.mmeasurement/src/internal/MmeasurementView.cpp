@@ -197,14 +197,13 @@ void MmeasurementView::ConvertNII() {
     //Convert to Nifti
     int ctr = 0;
     QString path;
-    bool successfulNitfi, resampleImage, reorientToRAI;
-    resampleImage = false;
-    reorientToRAI = true;
+    bool successfulNitfi;
+
     this->BusyCursorOn();
     mitk::ProgressBar::GetInstance()->AddStepsToDo(index.size());
     foreach (int idx, index) {
         path = directory + mitk::IOUtil::GetDirectorySeparator() + "dcm-" + QString::number(ctr++) + ".nii";
-        successfulNitfi = CemrgCommonUtils::ConvertToNifti(nodes.at(idx)->GetData(), path, resampleImage, reorientToRAI);
+        successfulNitfi = CemrgCommonUtils::ConvertToNifti(nodes.at(idx)->GetData(), path);
         if (successfulNitfi) {
             this->GetDataStorage()->Remove(nodes.at(idx));
         } else {

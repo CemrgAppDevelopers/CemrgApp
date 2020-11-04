@@ -175,7 +175,7 @@ void AtrialScarClipperView::iniPreSurf() {
         if (image) {
 
             //Check seg node name
-            if (segNode->GetName().compare(fileName.left(fileName.length()-4).toStdString()) != 0) {
+            if (segNode->GetName().compare(fileName.left(fileName.lastIndexOf(QChar('.'))).toStdString()) != 0) {
                 QMessageBox::warning(NULL, "Attention", "Please select the loaded or created segmentation!");
                 this->GetSite()->GetPage()->ResetPerspective();
                 return;
@@ -394,7 +394,7 @@ void AtrialScarClipperView::ClipperImage() {
             if (image) {
 
                 //Check if the right segmentation
-                if (segNode->GetName().compare(fileName.left(fileName.length()-4).toStdString()) != 0) {
+                if (segNode->GetName().compare(fileName.left(fileName.lastIndexOf(QChar('.'))).toStdString()) != 0) {
                     QMessageBox::warning(NULL, "Attention", "Please select the loaded or created segmentation!");
                     return;
                 }//_if

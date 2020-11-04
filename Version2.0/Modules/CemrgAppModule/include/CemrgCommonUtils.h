@@ -61,7 +61,7 @@ public:
     static mitk::Surface::Pointer LoadVTKMesh(std::string path);
     static QString M3dlibParamFileGenerator(QString dir, QString filename="param-template.par", QString thicknessCalc="0");
     static QString M3dlibLapSolvesParamFile(QString dir, QString filename, QString meshname, QString meshdir, bool usingDocker=true);
-    static void ConvertToCarto(std::string vtkPath);
+    static void CemrgCommonUtils::ConvertToCarto(std::string vtkPath, std::vector<double> thresholds, double meanBP, double stdvBP, int methodType, bool discreteScheme);
     static void CalculatePolyDataNormals(vtkSmartPointer<vtkPolyData>& pd, bool celldata=true);
 
     //Carp Utils
@@ -81,7 +81,7 @@ public:
 
     //Generic
     static mitk::DataNode::Pointer AddToStorage(
-            mitk::BaseData* data, std::string nodeName, mitk::DataStorage::Pointer ds);
+            mitk::BaseData* data, std::string nodeName, mitk::DataStorage::Pointer ds, bool init=true);
 
 private:
     //Cropping Utils

@@ -184,7 +184,7 @@ void WallThicknessCalculationsClipperView::iniPreSurf() {
         if (image) {
 
             //Check seg node name
-            if (segNode->GetName().compare(fileName.left(fileName.length()-4).toStdString()) != 0) {
+            if (segNode->GetName().compare(fileName.left(fileName.lastIndexOf(QChar('.'))).toStdString()) != 0) {
                 QMessageBox::warning(NULL, "Attention", "Please select the loaded or created segmentation!");
                 this->GetSite()->GetPage()->ResetPerspective();
                 return;
@@ -213,8 +213,8 @@ void WallThicknessCalculationsClipperView::iniPreSurf() {
                 if (!ok1) iter = 1;
                 if (!ok2) th   = 0.5;
                 if (!ok3) blur = 0;
-                if (!ok4) smth = 0;
-                if (!ok5) ds   = 0.99;
+                if (!ok4) smth = 10;
+                if (!ok5) ds   = 0.9;
                 //_if
 
                 this->BusyCursorOn();
@@ -244,7 +244,7 @@ void WallThicknessCalculationsClipperView::iniPreSurf() {
                 smoother->BoundarySmoothingOff();
                 smoother->FeatureEdgeSmoothingOff();
                 smoother->SetFeatureAngle(120.0);
-                smoother->SetPassBand(.01);
+                smoother->SetPassBand(.1);
                 smoother->NonManifoldSmoothingOn();
                 smoother->NormalizeCoordinatesOn();
                 smoother->Update();
@@ -430,7 +430,7 @@ void WallThicknessCalculationsClipperView::ClipperImage() {
 
                 //Check if the right segmentation
                 bool morphAnalysis = false;
-                if (segNode->GetName().compare(fileName.left(fileName.length()-4).toStdString()) == 0) {
+                if (segNode->GetName().compare(fileName.left(fileName.lastIndexOf(QChar('.'))).toStdString()) == 0) {
                     int reply1 = QMessageBox::question(
                                 NULL, "Question", "Are you sure you want to clip the same segmentation used for creating the visualised mesh?",
                                 QMessageBox::Yes, QMessageBox::No);

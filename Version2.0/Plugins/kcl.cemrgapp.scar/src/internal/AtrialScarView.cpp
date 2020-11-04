@@ -152,60 +152,70 @@ void AtrialScarView::OnSelectionChanged(
         berry::IWorkbenchPart::Pointer /*source*/, const QList<mitk::DataNode::Pointer>& /*nodes*/) {
 }
 
-
 void AtrialScarView::LoadDICOM() {
+
     int reply1 = QMessageBox::No;
 #if defined(__APPLE__)
     MITK_INFO << "Ask user about alternative DICOM reader";
     reply1 = QMessageBox::question(NULL, "Question",
                                    "Use alternative DICOM reader?", QMessageBox::Yes, QMessageBox::No);
 #endif
-    if(reply1 == QMessageBox::Yes){
-        QString dicomFolder = QFileDialog::getExistingDirectory(NULL, "Open folder with DICOMs.", mitk::IOUtil::GetProgramPath().c_str(), QFileDialog::ShowDirsOnly|QFileDialog::DontUseNativeDialog);
 
+    if (reply1 == QMessageBox::Yes) {
+
+        QString dicomFolder = QFileDialog::getExistingDirectory(NULL, "Open folder with DICOMs.", mitk::IOUtil::GetProgramPath().c_str(), QFileDialog::ShowDirsOnly|QFileDialog::DontUseNativeDialog);
         std::unique_ptr<CemrgCommandLine> cmd(new CemrgCommandLine());
         QString tmpNiftiFolder = cmd->DockerDicom2Nifti(dicomFolder);
-        if(tmpNiftiFolder.compare("ERROR_IN_PROCESSING") != 0){
+
+        if (tmpNiftiFolder.compare("ERROR_IN_PROCESSING") != 0) {
+
             // add results in NIIs folder to Data Manager
             MITK_INFO << ("Conversion succesful. Intermediate NII folder: " + tmpNiftiFolder).toStdString();
             QMessageBox::information(NULL, "Information", "Conversion successful, press the Process Images button to continue.");
-
             QDir niftiFolder(tmpNiftiFolder);
             QStringList niftiFiles = niftiFolder.entryList();
 
-            if(niftiFiles.size()>0){
+            if (niftiFiles.size()>0) {
+
                 QString thisFile, path;
-                for(int ix=0; ix<niftiFiles.size(); ix++){
+                for(int ix=0; ix<niftiFiles.size(); ix++) {
+
                     // load here files
                     thisFile = niftiFiles.at(ix);
-                    if(thisFile.contains(".nii", Qt::CaseSensitive)){
-                        if(thisFile.contains("lge", Qt::CaseInsensitive) ||  thisFile.contains("mra", Qt::CaseInsensitive)){
+                    if (thisFile.contains(".nii", Qt::CaseSensitive)) {
+                        if (thisFile.contains("lge", Qt::CaseInsensitive) ||  thisFile.contains("mra", Qt::CaseInsensitive)) {
+
                             path = niftiFolder.absolutePath() + mitk::IOUtil::GetDirectorySeparator() + thisFile;
-
                             mitk::Image::Pointer image = mitk::IOUtil::Load<mitk::Image>(path.toStdString());
-
                             std::string key = "dicom.series.SeriesDescription";
                             mitk::DataStorage::SetOfObjects::Pointer set = mitk::IOUtil::Load(path.toStdString(), *this->GetDataStorage());
                             set->Begin().Value()->GetData()->GetPropertyList()->SetStringProperty(key.c_str(), thisFile.left(thisFile.length()-4).toStdString().c_str());
-                        }
 
-                    }
-                }
-            } else{
+                        }//_if
+                    }//_if
+                }//_for
+
+            } else {
+
                 MITK_WARN << "Problem with conversion.";
                 QMessageBox::warning(NULL, "Attention", "Problem with alternative conversion. Try MITK Dicom editor?");
                 return;
-            }
-        }
+
+            }//_if
+        }//_if
+
     } else {
+
         MITK_INFO << "Using MITK DICOM editor";
         QString editor_id = "org.mitk.editors.dicomeditor";
         berry::IEditorInput::Pointer input(new berry::FileEditorInput(QString()));
         this->GetSite()->GetPage()->OpenEditor(input, editor_id);
-    }
+
+    }//_if
 }
 
 void AtrialScarView::ProcessIMGS() {
+
     //Toggle visibility of buttons
     if (m_Controls.button_2_1->isVisible()){
         m_Controls.button_2_1->setVisible(false);
@@ -529,7 +539,6 @@ void AtrialScarView::AutomaticAnalysis() {
             MITK_INFO << ("[...][3.1] Saved file: "+segCleanPath).toStdString();
 
             MITK_INFO << "[AUTOMATIC_ANALYSIS][4] Vein clipping mesh";
-            cmd->ExecuteTouch(direct+mitk::IOUtil::GetDirectorySeparator() + "segmentation.vtk");
             QString output1 = cmd->ExecuteSurf(direct, segCleanPath, "close", 1, .5, 0, 10);
             mitk::Surface::Pointer shell = mitk::IOUtil::Load<mitk::Surface>(output1.toStdString());
             vtkSmartPointer<vtkDecimatePro> deci = vtkSmartPointer<vtkDecimatePro>::New();
@@ -933,7 +942,7 @@ void AtrialScarView::NodeAdded(const mitk::DataNode* node) {
                 fileName = QInputDialog::getText(
                             NULL, tr("Save Segmentation As"), tr("File Name:"), QLineEdit::Normal, fileName, &ok);
                 if (ok && !fileName.isEmpty() && fileName.endsWith(".nii")) {
-                    segNode->SetName(fileName.left(fileName.length()-4).toStdString());
+                    segNode->SetName(fileName.left(fileName.lastIndexOf(QChar('.'))).toStdString());
                     path = directory + mitk::IOUtil::GetDirectorySeparator() + fileName;
                     mitk::IOUtil::Save(image, path.toStdString());
                 } else {
@@ -1067,7 +1076,6 @@ void AtrialScarView::Transform() {
 
             //Check seg node name
             QString segNodeTest = QString::fromStdString(segNode->GetName()) + ".nii";
-            // if (segNode->GetName().compare(fileName.left(fileName.length()-4).toStdString()) != 0) {
             if (!fileName.contains(segNodeTest, Qt::CaseSensitive)) {
                 MITK_WARN << ("[Transform] Problem with filename: " + fileName).toStdString();
                 MITK_INFO << "[...][warning] segNode: " + segNode->GetName();
@@ -1077,7 +1085,7 @@ void AtrialScarView::Transform() {
 
             bool ok;
             QString regFileName;
-            regFileName = fileName.left(fileName.length()-4) + "-reg.nii";
+            regFileName = fileName.left(fileName.lastIndexOf(QChar('.'))) + "-reg.nii";
             regFileName = QInputDialog::getText(NULL, tr("Save Registration As"), tr("File Name:"), QLineEdit::Normal, regFileName, &ok);
             if (ok && !regFileName.isEmpty() && regFileName.endsWith(".nii")) {
 
@@ -1168,7 +1176,7 @@ void AtrialScarView::CreateSurf() {
         if (image) {
 
             //Check seg node name
-            if (segNode->GetName().compare(fileName.left(fileName.length()-4).toStdString()) != 0) {
+            if (segNode->GetName().compare(fileName.left(fileName.lastIndexOf(QChar('.'))).toStdString()) != 0) {
                 QMessageBox::warning(NULL, "Attention", "Please select the loaded or created segmentation!");
                 return;
             }//_if
@@ -1267,7 +1275,8 @@ void AtrialScarView::SelectLandmarks() {
             return;
         }//_if
 
-        if (!RequestProjectDirectoryFromUser()) return; // if the path was chosen incorrectly -> returns.
+        //If the path was chosen incorrectly returns
+        if (!RequestProjectDirectoryFromUser()) return;
 
         //Reset the button
         m_Controls.button_z_1->setText("Select Landmarks");
@@ -1310,7 +1319,7 @@ void AtrialScarView::SelectLandmarks() {
         for (mitk::DataStorage::SetOfObjects::ConstIterator nodeIt = sob->Begin(); nodeIt != sob->End(); ++nodeIt)
             if (nodeIt->Value()->GetName().find("MVClipper") != nodeIt->Value()->GetName().npos)
                 this->GetDataStorage()->Remove(nodeIt->Value());
-        CemrgCommonUtils::AddToStorage(mvClipper, "MVClipper", this->GetDataStorage());
+        CemrgCommonUtils::AddToStorage(mvClipper, "MVClipper", this->GetDataStorage(), false);
         sob = this->GetDataStorage()->GetAll();
         for (mitk::DataStorage::SetOfObjects::ConstIterator nodeIt = sob->Begin(); nodeIt != sob->End(); ++nodeIt) {
             if (nodeIt->Value()->GetName().find("MVClipper") != nodeIt->Value()->GetName().npos) {
@@ -1349,7 +1358,7 @@ void AtrialScarView::ClipMitralValve() {
         QMessageBox::critical(NULL, "Attention", "No mesh was found in the project directory!");
         return;
     }//_if
-    QString orgP = path.left(path.length()-4) + "-Original.vtk";
+    QString orgP = path.left(path.lastIndexOf(QChar('.'))) + "-Original.vtk";
     mitk::IOUtil::Save(mitk::IOUtil::Load<mitk::Surface>(path.toStdString()), orgP.toStdString());
 
     /*
@@ -1374,7 +1383,7 @@ void AtrialScarView::ClipMitralValve() {
         if (nodeIt->Value()->GetName().find("MVClipper") != nodeIt->Value()->GetName().npos)
             this->GetDataStorage()->Remove(nodeIt->Value());
     }//_for
-    CemrgCommonUtils::AddToStorage(surface, "MVClipped-Mesh", this->GetDataStorage());
+    CemrgCommonUtils::AddToStorage(surface, "MVClipped-Mesh", this->GetDataStorage(), false);
 
     //Reverse coordination of surface for writing MIRTK style
     mitk::Surface::Pointer surfCloned = surface->Clone();
@@ -1497,7 +1506,7 @@ void AtrialScarView::ScarMap() {
                     scarSegImg = mitk::ImportItkImage(resampleFilter->GetOutput());
 
                     //Update datamanger
-                    std::string nodeSegImgName = fileName.left(fileName.length()-4).toStdString();
+                    std::string nodeSegImgName = fileName.left(fileName.lastIndexOf(QChar('.'))).toStdString();
                     mitk::DataStorage::SetOfObjects::ConstPointer sob = this->GetDataStorage()->GetAll();
                     for (mitk::DataStorage::SetOfObjects::ConstIterator nodeIt = sob->Begin(); nodeIt != sob->End(); ++nodeIt)
                         if (nodeIt->Value()->GetName().find(nodeSegImgName) != nodeIt->Value()->GetName().npos)
@@ -1822,11 +1831,13 @@ void AtrialScarView::Reset(bool allItems) {
     this->GetSite()->GetPage()->ResetPerspective();
 }
 
-// helper functions
-bool AtrialScarView::RequestProjectDirectoryFromUser(){
+bool AtrialScarView::RequestProjectDirectoryFromUser() {
+
     bool succesfulAssignment = true;
+
     //Ask the user for a dir to store data
     if (directory.isEmpty()) {
+
         MITK_INFO << "Directory is empty. Requesting user for directory.";
         directory = QFileDialog::getExistingDirectory(
                     NULL, "Open Project Directory", mitk::IOUtil::GetProgramPath().c_str(),
@@ -1838,9 +1849,10 @@ bool AtrialScarView::RequestProjectDirectoryFromUser(){
             directory = QString();
             succesfulAssignment = false;
         }//_if
+
     } else {
         MITK_INFO << ("Project directory already set: " + directory).toStdString();
-    }
+    }//_if
 
     return succesfulAssignment;
 }

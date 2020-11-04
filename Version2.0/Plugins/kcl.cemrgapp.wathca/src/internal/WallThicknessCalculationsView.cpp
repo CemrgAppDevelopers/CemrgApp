@@ -66,6 +66,8 @@ PURPOSE.  See the above copyright notices for more information.
 #include <vtkFieldData.h>
 #include <vtkCleanPolyData.h>
 #include <vtkPolyDataNormals.h>
+#include <vtkPolyDataConnectivityFilter.h>
+#include <vtkWindowedSincPolyDataFilter.h>
 
 //ITK
 #include <itkAddImageFilter.h>
@@ -182,12 +184,15 @@ void WallThicknessCalculationsView::ConvertNII() {
     //Generic Conversion to nii
     int ctr = 0;
     QString path;
-    bool successfulNitfi;
+    bool successfulNitfi, resampleImage, reorientToRAI;
+    resampleImage = false;
+    reorientToRAI = true;
+
     this->BusyCursorOn();
     mitk::ProgressBar::GetInstance()->AddStepsToDo(nodes.size());
     foreach (mitk::DataNode::Pointer node, nodes) {
         path = directory + mitk::IOUtil::GetDirectorySeparator() + "dcm-" + QString::number(ctr++) + ".nii";
-        successfulNitfi = CemrgCommonUtils::ConvertToNifti(node->GetData(), path);
+        successfulNitfi = CemrgCommonUtils::ConvertToNifti(node->GetData(), path, resampleImage, reorientToRAI);
         if (successfulNitfi) {
             this->GetDataStorage()->Remove(node);
         } else {
@@ -567,8 +572,8 @@ void WallThicknessCalculationsView::MorphologyAnalysis() {
                 if (!ok1) iter = 1;
                 if (!ok2) th   = 0.5;
                 if (!ok3) blur = 0;
-                if (!ok4) smth = 0;
-                if (!ok5) ds   = 0.99;
+                if (!ok4) smth = 10;
+                if (!ok5) ds   = 0.9;
                 //_if
 
                 this->BusyCursorOn();
@@ -581,13 +586,28 @@ void WallThicknessCalculationsView::MorphologyAnalysis() {
 
                 //Decimate the mesh to visualise
                 mitk::Surface::Pointer shell = mitk::IOUtil::Load<mitk::Surface>(output.toStdString());
-                vtkSmartPointer<vtkDecimatePro> deci = vtkSmartPointer<vtkDecimatePro>::New();
-                deci->SetInputData(shell->GetVtkPolyData());
-                deci->SetTargetReduction(ds);
-                deci->PreserveTopologyOn();
-                deci->Update();
+                vtkSmartPointer<vtkDecimatePro> deci1 = vtkSmartPointer<vtkDecimatePro>::New();
+                deci1->SetInputData(shell->GetVtkPolyData());
+                deci1->SetTargetReduction(ds);
+                deci1->PreserveTopologyOn();
+                deci1->Update();
+                vtkSmartPointer<vtkPolyDataConnectivityFilter> connectivityFilter1 = vtkSmartPointer<vtkPolyDataConnectivityFilter>::New();
+                connectivityFilter1->SetInputConnection(deci1->GetOutputPort());
+                connectivityFilter1->ColorRegionsOff();
+                connectivityFilter1->SetExtractionModeToLargestRegion();
+                connectivityFilter1->Update();
+                vtkSmartPointer<vtkWindowedSincPolyDataFilter> smoother1 = vtkSmartPointer<vtkWindowedSincPolyDataFilter>::New();
+                smoother1->SetInputConnection(connectivityFilter1->GetOutputPort());
+                smoother1->SetNumberOfIterations(30);
+                smoother1->BoundarySmoothingOff();
+                smoother1->FeatureEdgeSmoothingOff();
+                smoother1->SetFeatureAngle(120.0);
+                smoother1->SetPassBand(.1);
+                smoother1->NonManifoldSmoothingOn();
+                smoother1->NormalizeCoordinatesOn();
+                smoother1->Update();
                 vtkSmartPointer<vtkCleanPolyData> cleaner1 = vtkSmartPointer<vtkCleanPolyData>::New();
-                cleaner1->SetInputConnection(deci->GetOutputPort());
+                cleaner1->SetInputConnection(smoother1->GetOutputPort());
                 cleaner1->PieceInvariantOn();
                 cleaner1->ConvertLinesToPointsOn();
                 cleaner1->ConvertStripsToPolysOn();
@@ -610,12 +630,28 @@ void WallThicknessCalculationsView::MorphologyAnalysis() {
 
                 //Decimate the mesh to visualise
                 shell = mitk::IOUtil::Load<mitk::Surface>(output.toStdString());
-                deci->SetInputData(shell->GetVtkPolyData());
-                deci->SetTargetReduction(ds);
-                deci->PreserveTopologyOn();
-                deci->Update();
+                vtkSmartPointer<vtkDecimatePro> deci2 = vtkSmartPointer<vtkDecimatePro>::New();
+                deci2->SetInputData(shell->GetVtkPolyData());
+                deci2->SetTargetReduction(ds);
+                deci2->PreserveTopologyOn();
+                deci2->Update();
+                vtkSmartPointer<vtkPolyDataConnectivityFilter> connectivityFilter2 = vtkSmartPointer<vtkPolyDataConnectivityFilter>::New();
+                connectivityFilter2->SetInputConnection(deci2->GetOutputPort());
+                connectivityFilter2->ColorRegionsOff();
+                connectivityFilter2->SetExtractionModeToLargestRegion();
+                connectivityFilter2->Update();
+                vtkSmartPointer<vtkWindowedSincPolyDataFilter> smoother2 = vtkSmartPointer<vtkWindowedSincPolyDataFilter>::New();
+                smoother2->SetInputConnection(connectivityFilter2->GetOutputPort());
+                smoother2->SetNumberOfIterations(30);
+                smoother2->BoundarySmoothingOff();
+                smoother2->FeatureEdgeSmoothingOff();
+                smoother2->SetFeatureAngle(120.0);
+                smoother2->SetPassBand(.1);
+                smoother2->NonManifoldSmoothingOn();
+                smoother2->NormalizeCoordinatesOn();
+                smoother2->Update();
                 vtkSmartPointer<vtkCleanPolyData> cleaner2 = vtkSmartPointer<vtkCleanPolyData>::New();
-                cleaner2->SetInputConnection(deci->GetOutputPort());
+                cleaner2->SetInputConnection(smoother2->GetOutputPort());
                 cleaner2->PieceInvariantOn();
                 cleaner2->ConvertLinesToPointsOn();
                 cleaner2->ConvertStripsToPolysOn();

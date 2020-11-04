@@ -81,9 +81,7 @@ CemrgAtriaClipper::CemrgAtriaClipper(QString directory, mitk::Surface::Pointer s
     this->surface = surface;
     this->clippedSurface = surface;
     this->clippedSegImage = mitk::Image::New();
-
     ctrlnOrientation = false;
-    manualCtrLnOrient = false;
 }
 
 bool CemrgAtriaClipper::ComputeCtrLines(std::vector<int> pickedSeedLabels, vtkSmartPointer<vtkIdList> pickedSeedIds, bool flip) {
@@ -623,11 +621,10 @@ vtkIdType CemrgAtriaClipper::CentreOfMass(mitk::Surface::Pointer surface) {
     //Polydata of surface
     vtkSmartPointer<vtkPolyData> pd = surface->GetVtkPolyData();
     CemrgCommonUtils::CalculatePolyDataNormals(pd, false);
-
     vtkSmartPointer<vtkFloatArray> pdNormals = vtkFloatArray::SafeDownCast(pd->GetPointData()->GetNormals());
     vtkSmartPointer<vtkCenterOfMass> centre = vtkSmartPointer<vtkCenterOfMass>::New();
-    double centreInSurface[3];
 
+    double centreInSurface[3];
     centre->SetInputData(pd);
     centre->SetUseScalarsAsWeights(false);
     centre->Update();
@@ -636,24 +633,23 @@ vtkIdType CemrgAtriaClipper::CentreOfMass(mitk::Surface::Pointer surface) {
     vtkSmartPointer<vtkPointLocator> pointLocator = vtkSmartPointer<vtkPointLocator>::New();
     pointLocator->SetDataSet(pd);
     pointLocator->BuildLocator();
-
     vtkIdType id = pointLocator->FindClosestPoint(centreInSurface); // output of method
 
     double * pointNormal = pdNormals->GetTuple(id);
     double * pointInSurface = pd->GetPoints()->GetPoint(id);
-
     double xProduct = 0;
     double mitralValvePlane[3] = {0}; //change name
     mitralValvePlane[0] = pointInSurface[0] - centreInSurface[0];
     mitralValvePlane[1] = pointInSurface[1] - centreInSurface[1];
     mitralValvePlane[2] = pointInSurface[2] - centreInSurface[2];
-    for (int i = 0; i < 3; i++){
+    for (int i = 0; i < 3; i++) {
         xProduct += (mitralValvePlane[i])*(pointNormal[i]);
-    }
+    }//_for
 
-    if(xProduct < 0){ // orientation of centrelines
+    //Orientation of centrelines
+    if (xProduct < 0) {
         ctrlnOrientation = true;
-    }
+    }//_if
 
     return id;
 }

@@ -215,6 +215,7 @@ void MmcwView::ConvertNII() {
     int ctr = 0;
     QString path;
     bool successfulNitfi;
+
     this->BusyCursorOn();
     mitk::ProgressBar::GetInstance()->AddStepsToDo(index.size());
     foreach (int idx, index) {
@@ -574,8 +575,8 @@ void MmcwView::CreateSurf() {
             QMessageBox::warning(NULL, "Attention", "Reverting to default parameters!");
         if (!ok1) iter = 1;
         if (!ok2) th   = 0.5;
-        if (!ok3) blur = 3;
-        if (!ok4) smth = 40;
+        if (!ok3) blur = 0;
+        if (!ok4) smth = 10;
         //_if
 
         this->BusyCursorOn();
