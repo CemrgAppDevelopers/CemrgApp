@@ -1078,7 +1078,7 @@ QString CemrgCommandLine::DockerDicom2Nifti(QString path2dicomfolder){
     return outAbsolutePath;
 }
 
-QString CemrgCommandLine::DockerSurfaceFromMesh(QString dir, QString meshname, QString op, QString outputSuffix){
+QString CemrgCommandLine::DockerSurfaceFromMesh(QString dir, QString meshname, QString outname, QString op, QString outputSuffix){
     // Method equivalent to:  meshtool extract surface
     SetDockerImage("alonsojasl/cemrg-meshtool:v1.0");
     QString executablePath = "";
@@ -1090,7 +1090,6 @@ QString CemrgCommandLine::DockerSurfaceFromMesh(QString dir, QString meshname, Q
 
     QDir home(dir);
 
-    QString outname = meshname;
     outname += (outputSuffix.at(0)=="_") ? outputSuffix : ("_"+outputSuffix);
 
     QStringList arguments = GetDockerArguments(home.absolutePath());

@@ -405,39 +405,42 @@ void FibresView::ExtractSurfacesProcess(){
         opEpi = CreateSurfExtractOp(vepi, (QStringList()<<","<<","<<"-"<<","<<","<<","));
 
         MITK_INFO << "[FibresView] Extracting BIVbase and Apex";
-        QFile::copy(elemFull, modPathName+".elem");
-        QFile::copy(ptsFull, modPathName+".pts");
+        // QFile::copy(elemFull, modPathName+".elem");
+        // QFile::copy(ptsFull, modPathName+".pts");
 
         std::unique_ptr<CemrgCommandLine> cmd(new CemrgCommandLine());
         cmd->SetDockerImage("alonsojasl/cemrg-meshtool:v1.0");
+        MITK_INFO << ("Input: " + name + ", Output:" + modName).toStdString();
+        surfApex = cmd->DockerSurfaceFromMesh(dir, name, modName, opApex, "_apex");
+        surfBase = cmd->DockerSurfaceFromMesh(dir, name, modName, opBIVbase, "_BIVbase");
 
-        surfApex = cmd->DockerSurfaceFromMesh(dir, modName, opApex, "_apex");
-        surfBase = cmd->DockerSurfaceFromMesh(dir, modName, opBIVbase, "_BIVbase");
-
-        QFile::remove(modPathName+".elem");
-        QFile::copy(cavElem, modPathName+".elem");
+        // QFile::remove(modPathName+".elem");
+        // QFile::copy(cavElem, modPathName+".elem");
+        MITK_INFO << "Copying .pts file to _Cav.pts for other surfaces extraction";
+        QString cavName =  name + "_Cav";
+        QString cavPathName = dir + mitk::IOUtil::GetDirectorySeparator() + cavName;
+        QFile::copy(ptsFull, cavPathName+".pts");
 
         MITK_INFO << "[FibresView] Extracting LVendo, RVendo and Epi";
-        surfLVendo = cmd->DockerSurfaceFromMesh(dir, modName, opLVendo, "_LVendo");
-        surfRVendo = cmd->DockerSurfaceFromMesh(dir, modName, opRVendo, "_RVendo");
-        surfEpi = cmd->DockerSurfaceFromMesh(dir, modName, opEpi, "_epi");
+        MITK_INFO << ("Input: " + cavName + ", Output:" + modName).toStdString();
+        surfLVendo = cmd->DockerSurfaceFromMesh(dir, cavName, modName, opLVendo, "_LVendo");
+        surfRVendo = cmd->DockerSurfaceFromMesh(dir, cavName, modName, opRVendo, "_RVendo");
+        surfEpi = cmd->DockerSurfaceFromMesh(dir, cavName, modName, opEpi, "_epi");
 
         FinishedProcess("Extract Surfaces", "Cleaning up extra files");
         extractSurfaceDone = true;
 
-        MITK_INFO << "Cleaning up (.surf, .neubc)";
-        QFile::remove(modPathName+"_apex.surf");
+        MITK_INFO << "Cleaning up (.neubc)";
         QFile::remove(modPathName+"_apex.neubc");
-        QFile::remove(modPathName+"_BIVbase.surf");
         QFile::remove(modPathName+"_BIVbase.neubc");
-        QFile::remove(modPathName+"_LVendo.surf");
         QFile::remove(modPathName+"_LVendo.neubc");
-        QFile::remove(modPathName+"_RVendo.surf");
         QFile::remove(modPathName+"_RVendo.neubc");
-        QFile::remove(modPathName+"_epi.surf");
         QFile::remove(modPathName+"_epi.neubc");
-        QFile::remove(modPathName+".fcon");
-        FinishedProcess("Cleaning up .surf and .neubc files");
+        QFile::remove(dir+mitk::IOUtil::GetDirectorySeparator()+name+".fcon");
+        QFile::remove(dir+mitk::IOUtil::GetDirectorySeparator()+cavName+".fcon");
+        QFile::remove(dir+mitk::IOUtil::GetDirectorySeparator()+cavName+".pts");
+
+        FinishedProcess("Cleaning up .neubc files");
 
     } else{
         QMessageBox::warning(NULL, "Attention",
@@ -474,10 +477,11 @@ void FibresView::LaplaceSolvesProcess(){
 
         laplaceSolvesDone = true;
         MITK_INFO << "Cleaning up (.grad)";
-        QFile::remove(modPathName+"_apex.grad");
-        QFile::remove(modPathName+"_epi.grad");
-        QFile::remove(modPathName+"_lv.grad");
-        QFile::remove(modPathName+"_rv.grad");
+        QFile::remove(modPathName+"_lap_apex.grad");
+        QFile::remove(modPathName+"_lap_epi.grad");
+        QFile::remove(modPathName+"_lap_lv.grad");
+        QFile::remove(modPathName+"_lap_rv.grad");
+        FinishedProcess("Cleaning Laplace Solves gradient files (.grad)");
 
     } else{
         QMessageBox::warning(NULL, "Attention",
@@ -517,6 +521,7 @@ void FibresView::GenerateFibresProcess(){
         FinishedProcess("Fibres generation", "Beginning normalisation of vectors.");
 
         CemrgCommonUtils::NormaliseFibreFiles(fibresFile, modPathName+"_fibres_norm.lon");
+        fibresDone = true;
         FinishedProcess("Fibres normalisation");
     } else{
         QMessageBox::warning(NULL, "Attention", "Laplace Solves files (.dat) not found or have the wrong name.");
@@ -546,6 +551,12 @@ void FibresView::SetNames(){
     // modPathName will be used in many scenarios
     modName = name + "_mod";
     modPathName = dir + mitk::IOUtil::GetDirectorySeparator() + modName;
+
+    surfApex = modPathName + "_apex.surf.vtx";
+    surfBase =  modPathName + "_BIVbase.surf.vtx";
+    surfLVendo = modPathName + "_LVendo.surf.vtx";
+    surfRVendo = modPathName + "_RVendo.surf.vtx";
+    surfEpi = modPathName + "_epi.surf.vtx";
 
     lapApex = modPathName + "_lap_apex_potential.dat";
     lapEpi = modPathName + "_lap_epi_potential.dat";
@@ -683,11 +694,11 @@ bool FibresView::IsExtractSurfDone(){
 
     if(isExtractSurf){
         MITK_INFO << "Check: surface files number of points.";
-        isSurfFileCorrect = CemrgCommonUtils::GetTotalFromCarpFile(surfApex) &&
-                        CemrgCommonUtils::GetTotalFromCarpFile(surfBase) &&
-                        CemrgCommonUtils::GetTotalFromCarpFile(surfEpi) &&
-                        CemrgCommonUtils::GetTotalFromCarpFile(surfLVendo) &&
-                        CemrgCommonUtils::GetTotalFromCarpFile(surfRVendo);
+        isSurfFileCorrect = (CemrgCommonUtils::GetTotalFromCarpFile(surfApex)>0) &&
+                        (CemrgCommonUtils::GetTotalFromCarpFile(surfBase)>0) &&
+                        (CemrgCommonUtils::GetTotalFromCarpFile(surfEpi)>0) &&
+                        (CemrgCommonUtils::GetTotalFromCarpFile(surfLVendo)>0) &&
+                        (CemrgCommonUtils::GetTotalFromCarpFile(surfRVendo)>0);
     }
 
     MITK_INFO(!isExtractSurf) << "Surface files not created.";
