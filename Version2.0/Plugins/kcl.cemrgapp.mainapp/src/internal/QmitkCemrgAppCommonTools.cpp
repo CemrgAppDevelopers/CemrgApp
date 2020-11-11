@@ -240,6 +240,7 @@ void QmitkCemrgAppCommonTools::ConvertCarpToVtk(){
         int nElem = CemrgCommonUtils::GetTotalFromCarpFile(pathElem);
         int nPts = CemrgCommonUtils::GetTotalFromCarpFile(pathPts);
         int nField;
+        int countFields=0;
 
         while (appendScalarFieldReply==QMessageBox::Yes){
             path = QFileDialog::getOpenFileName(NULL, "Open Scalar field (.dat) file", dir.toStdString().c_str());
@@ -256,8 +257,8 @@ void QmitkCemrgAppCommonTools::ConvertCarpToVtk(){
                 MITK_INFO << "Inconsistent file size";
                 break;
             }
-            CemrgCommonUtils::AppendScalarFieldToVtk(vtkPath, fi2.baseName(), typeData, field);
-
+            CemrgCommonUtils::AppendScalarFieldToVtk(vtkPath, fi2.baseName(), typeData, field, (countFields==0));
+            countFields++;
             appendScalarFieldReply = QMessageBox::question(NULL, "Question",
                     "Append another scalar field from a file?", QMessageBox::Yes, QMessageBox::No);
         }
