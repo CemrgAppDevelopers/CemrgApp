@@ -33,6 +33,7 @@ PURPOSE.  See the above copyright notices for more information.
 #include <berryFileEditorInput.h>
 
 //Qmitk
+#include <mitkImage.h>
 #include <QmitkIOUtil.h>
 #include <mitkProgressBar.h>
 #include <mitkIDataStorageService.h>
@@ -46,7 +47,7 @@ PURPOSE.  See the above copyright notices for more information.
 #include <mitkAffineImageCropperInteractor.h>
 #include <mitkImagePixelReadAccessor.h>
 #include <mitkUnstructuredGrid.h>
-#include <mitkImage.h>
+#include <mitkManualSegmentationToSurfaceFilter.h>
 #include "kcl_cemrgapp_wathca_Activator.h"
 #include "WallThicknessCalculationsView.h"
 #include "WallThicknessCalculationsClipperView.h"
@@ -62,7 +63,6 @@ PURPOSE.  See the above copyright notices for more information.
 #endif
 
 //VTK
-#include <vtkDecimatePro.h>
 #include <vtkFieldData.h>
 #include <vtkCleanPolyData.h>
 #include <vtkPolyDataNormals.h>
@@ -559,113 +559,90 @@ void WallThicknessCalculationsView::MorphologyAnalysis() {
             //Act on dialog return code
             if (dialogCode == QDialog::Accepted) {
 
-                bool ok1, ok2, ok3, ok4, ok5;
-                int iter = m_UIMeshing.lineEdit_1->text().toInt(&ok1);
-                float th = m_UIMeshing.lineEdit_2->text().toFloat(&ok2);
-                int blur = m_UIMeshing.lineEdit_3->text().toInt(&ok3);
-                int smth = m_UIMeshing.lineEdit_4->text().toInt(&ok4);
-                float ds = m_UIMeshing.lineEdit_5->text().toFloat(&ok5);
+                bool ok1, ok2, ok3, ok4;
+                float th = m_UIMeshing.lineEdit_1->text().toFloat(&ok1);
+                float bl = m_UIMeshing.lineEdit_2->text().toFloat(&ok2);
+                int smth = m_UIMeshing.lineEdit_3->text().toInt(&ok3);
+                float ds = m_UIMeshing.lineEdit_4->text().toFloat(&ok4);
 
                 //Set default values
-                if (!ok1 || !ok2 || !ok3 || !ok4 || !ok5)
+                if (!ok1 || !ok2 || !ok3 || !ok4)
                     QMessageBox::warning(NULL, "Attention", "Reverting to default parameters!");
-                if (!ok1) iter = 1;
-                if (!ok2) th   = 0.5;
-                if (!ok3) blur = 0;
-                if (!ok4) smth = 10;
-                if (!ok5) ds   = 0.9;
+                if (!ok1) th   = 0.5;
+                if (!ok2) bl   = 0.8;
+                if (!ok3) smth = 3;
+                if (!ok4) ds   = 0.5;
                 //_if
 
                 this->BusyCursorOn();
-                QString path1 = directory + mitk::IOUtil::GetDirectorySeparator() + "bp.nii";
-                mitk::IOUtil::Save(bp, path1.toStdString());
-                mitk::ProgressBar::GetInstance()->AddStepsToDo(3);
-                std::unique_ptr<CemrgCommandLine> cmd1(new CemrgCommandLine());
-                QString output = cmd1->ExecuteSurf(directory, path1, "close", iter, th, blur, smth);
-                QMessageBox::information(NULL, "Attention", "Command Line Operations (Bloodpool) Finished!");
-
-                //Decimate the mesh to visualise
-                mitk::Surface::Pointer shell = mitk::IOUtil::Load<mitk::Surface>(output.toStdString());
-                vtkSmartPointer<vtkDecimatePro> deci1 = vtkSmartPointer<vtkDecimatePro>::New();
-                deci1->SetInputData(shell->GetVtkPolyData());
-                deci1->SetTargetReduction(ds);
-                deci1->PreserveTopologyOn();
-                deci1->Update();
+                mitk::ProgressBar::GetInstance()->AddStepsToDo(2);
+                auto filter1 = mitk::ManualSegmentationToSurfaceFilter::New();
+                filter1->SetInput(bp);
+                filter1->SetThreshold(th);
+                filter1->SetUseGaussianImageSmooth(true);
+                filter1->SetSmooth(true);
+                filter1->SetMedianFilter3D(true);
+                filter1->InterpolationOn();
+                filter1->SetGaussianStandardDeviation(bl);
+                filter1->SetMedianKernelSize(smth, smth, smth);
+                filter1->SetDecimate(mitk::ImageToSurfaceFilter::QuadricDecimation);
+                filter1->SetTargetReduction(ds);
+                filter1->UpdateLargestPossibleRegion();
+                mitk::ProgressBar::GetInstance()->Progress();
+                mitk::Surface::Pointer shell1 = filter1->GetOutput();
+                vtkSmartPointer<vtkPolyData> pd1 = shell1->GetVtkPolyData();
+                pd1->SetVerts(nullptr);
+                pd1->SetLines(nullptr);
                 vtkSmartPointer<vtkPolyDataConnectivityFilter> connectivityFilter1 = vtkSmartPointer<vtkPolyDataConnectivityFilter>::New();
-                connectivityFilter1->SetInputConnection(deci1->GetOutputPort());
+                connectivityFilter1->SetInputData(pd1);
                 connectivityFilter1->ColorRegionsOff();
                 connectivityFilter1->SetExtractionModeToLargestRegion();
                 connectivityFilter1->Update();
-                vtkSmartPointer<vtkWindowedSincPolyDataFilter> smoother1 = vtkSmartPointer<vtkWindowedSincPolyDataFilter>::New();
-                smoother1->SetInputConnection(connectivityFilter1->GetOutputPort());
-                smoother1->SetNumberOfIterations(30);
-                smoother1->BoundarySmoothingOff();
-                smoother1->FeatureEdgeSmoothingOff();
-                smoother1->SetFeatureAngle(120.0);
-                smoother1->SetPassBand(.1);
-                smoother1->NonManifoldSmoothingOn();
-                smoother1->NormalizeCoordinatesOn();
-                smoother1->Update();
-                vtkSmartPointer<vtkCleanPolyData> cleaner1 = vtkSmartPointer<vtkCleanPolyData>::New();
-                cleaner1->SetInputConnection(smoother1->GetOutputPort());
-                cleaner1->PieceInvariantOn();
-                cleaner1->ConvertLinesToPointsOn();
-                cleaner1->ConvertStripsToPolysOn();
-                cleaner1->PointMergingOn();
-                cleaner1->Update();
-                vtkSmartPointer<vtkPolyDataNormals> computeNormals1 = vtkSmartPointer<vtkPolyDataNormals>::New();
-                computeNormals1->SetInputConnection(cleaner1->GetOutputPort());
-                computeNormals1->SetFeatureAngle(360.0f);
-                computeNormals1->AutoOrientNormalsOn();
-                computeNormals1->FlipNormalsOff();
-                computeNormals1->Update();
-                shell->SetVtkPolyData(computeNormals1->GetOutput());
-                mitk::Surface::Pointer surfLA = shell->Clone();
-                QString path2 = directory + mitk::IOUtil::GetDirectorySeparator() + "ap.nii";
-                mitk::IOUtil::Save(ap, path2.toStdString());
-                mitk::ProgressBar::GetInstance()->AddStepsToDo(3);
-                std::unique_ptr<CemrgCommandLine> cmd2(new CemrgCommandLine());
-                output = cmd2->ExecuteSurf(directory, path2, "close", iter, th, blur, smth);
-                QMessageBox::information(NULL, "Attention", "Command Line Operations (Appendage) Finished!");
+                vtkSmartPointer<vtkPolyDataNormals> normals1 = vtkSmartPointer<vtkPolyDataNormals>::New();
+                normals1->AutoOrientNormalsOn();
+                normals1->FlipNormalsOff();
+                normals1->SetInputConnection(connectivityFilter1->GetOutputPort());
+                normals1->Update();
+                shell1->SetVtkPolyData(normals1->GetOutput());
+                mitk::Surface::Pointer surfLA = shell1->Clone();
+                mitk::ProgressBar::GetInstance()->Progress();
+                this->BusyCursorOff();
+                QMessageBox::information(NULL, "Attention", "Operations (Bloodpool) Finished!");
 
-                //Decimate the mesh to visualise
-                shell = mitk::IOUtil::Load<mitk::Surface>(output.toStdString());
-                vtkSmartPointer<vtkDecimatePro> deci2 = vtkSmartPointer<vtkDecimatePro>::New();
-                deci2->SetInputData(shell->GetVtkPolyData());
-                deci2->SetTargetReduction(ds);
-                deci2->PreserveTopologyOn();
-                deci2->Update();
+                this->BusyCursorOn();
+                mitk::ProgressBar::GetInstance()->AddStepsToDo(2);
+                auto filter2 = mitk::ManualSegmentationToSurfaceFilter::New();
+                filter2->SetInput(ap);
+                filter2->SetThreshold(th);
+                filter2->SetUseGaussianImageSmooth(true);
+                filter2->SetSmooth(true);
+                filter2->SetMedianFilter3D(true);
+                filter2->InterpolationOn();
+                filter2->SetGaussianStandardDeviation(bl);
+                filter2->SetMedianKernelSize(smth, smth, smth);
+                filter2->SetDecimate(mitk::ImageToSurfaceFilter::QuadricDecimation);
+                filter2->SetTargetReduction(ds);
+                filter2->UpdateLargestPossibleRegion();
+                mitk::ProgressBar::GetInstance()->Progress();
+                mitk::Surface::Pointer shell2 = filter2->GetOutput();
+                vtkSmartPointer<vtkPolyData> pd2 = shell2->GetVtkPolyData();
+                pd2->SetVerts(nullptr);
+                pd2->SetLines(nullptr);
                 vtkSmartPointer<vtkPolyDataConnectivityFilter> connectivityFilter2 = vtkSmartPointer<vtkPolyDataConnectivityFilter>::New();
-                connectivityFilter2->SetInputConnection(deci2->GetOutputPort());
+                connectivityFilter2->SetInputData(pd2);
                 connectivityFilter2->ColorRegionsOff();
                 connectivityFilter2->SetExtractionModeToLargestRegion();
                 connectivityFilter2->Update();
-                vtkSmartPointer<vtkWindowedSincPolyDataFilter> smoother2 = vtkSmartPointer<vtkWindowedSincPolyDataFilter>::New();
-                smoother2->SetInputConnection(connectivityFilter2->GetOutputPort());
-                smoother2->SetNumberOfIterations(30);
-                smoother2->BoundarySmoothingOff();
-                smoother2->FeatureEdgeSmoothingOff();
-                smoother2->SetFeatureAngle(120.0);
-                smoother2->SetPassBand(.1);
-                smoother2->NonManifoldSmoothingOn();
-                smoother2->NormalizeCoordinatesOn();
-                smoother2->Update();
-                vtkSmartPointer<vtkCleanPolyData> cleaner2 = vtkSmartPointer<vtkCleanPolyData>::New();
-                cleaner2->SetInputConnection(smoother2->GetOutputPort());
-                cleaner2->PieceInvariantOn();
-                cleaner2->ConvertLinesToPointsOn();
-                cleaner2->ConvertStripsToPolysOn();
-                cleaner2->PointMergingOn();
-                cleaner2->Update();
-                vtkSmartPointer<vtkPolyDataNormals> computeNormals2 = vtkSmartPointer<vtkPolyDataNormals>::New();
-                computeNormals2->SetInputConnection(cleaner2->GetOutputPort());
-                computeNormals2->SetFeatureAngle(360.0f);
-                computeNormals2->AutoOrientNormalsOn();
-                computeNormals2->FlipNormalsOff();
-                computeNormals2->Update();
-                shell->SetVtkPolyData(computeNormals2->GetOutput());
-                mitk::Surface::Pointer surfAP = shell->Clone();
+                vtkSmartPointer<vtkPolyDataNormals> normals2 = vtkSmartPointer<vtkPolyDataNormals>::New();
+                normals2->AutoOrientNormalsOn();
+                normals2->FlipNormalsOff();
+                normals2->SetInputConnection(connectivityFilter2->GetOutputPort());
+                normals2->Update();
+                shell2->SetVtkPolyData(normals2->GetOutput());
+                mitk::Surface::Pointer surfAP = shell2->Clone();
+                mitk::ProgressBar::GetInstance()->Progress();
                 this->BusyCursorOff();
+                QMessageBox::information(NULL, "Attention", "Operations (Appendage) Finished!");
 
                 //Volume and surface calculations
                 std::unique_ptr<CemrgMeasure> morphAnal = std::unique_ptr<CemrgMeasure>(new CemrgMeasure());
@@ -696,8 +673,6 @@ void WallThicknessCalculationsView::MorphologyAnalysis() {
                         QMessageBox::warning(NULL, "Attention", "Wrong file name input. Saved with default name!");
                 } else
                     QMessageBox::warning(NULL, "Attention", "Wrong file name input. Saved with default name!");
-                remove(path1.toStdString().c_str());
-                remove(path2.toStdString().c_str());
                 inputs->deleteLater();
 
             } else if (dialogCode == QDialog::Rejected) {

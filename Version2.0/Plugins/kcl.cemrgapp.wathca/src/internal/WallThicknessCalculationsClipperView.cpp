@@ -32,10 +32,11 @@ PURPOSE.  See the above copyright notices for more information.
 #include <berryIWorkbenchPage.h>
 
 // Qmitk
+#include <mitkImage.h>
 #include <mitkIOUtil.h>
 #include <mitkProgressBar.h>
 #include <mitkNodePredicateProperty.h>
-#include <mitkImage.h>
+#include <mitkManualSegmentationToSurfaceFilter.h>
 #include "WallThicknessCalculationsClipperView.h"
 #include "WallThicknessCalculationsView.h"
 
@@ -54,7 +55,6 @@ PURPOSE.  See the above copyright notices for more information.
 #include <vtkPointData.h>
 #include <vtkTextActor.h>
 #include <vtkTextProperty.h>
-#include <vtkDecimatePro.h>
 #include <vtkCleanPolyData.h>
 #include <vtkPolyDataNormals.h>
 #include <vtkWindowedSincPolyDataFilter.h>
@@ -200,72 +200,63 @@ void WallThicknessCalculationsClipperView::iniPreSurf() {
             //Act on dialog return code
             if (dialogCode == QDialog::Accepted) {
 
-                bool ok1, ok2, ok3, ok4, ok5;
-                int iter = m_UIMeshing.lineEdit_1->text().toInt(&ok1);
-                float th = m_UIMeshing.lineEdit_2->text().toFloat(&ok2);
-                int blur = m_UIMeshing.lineEdit_3->text().toInt(&ok3);
-                int smth = m_UIMeshing.lineEdit_4->text().toInt(&ok4);
-                float ds = m_UIMeshing.lineEdit_5->text().toFloat(&ok5);
+                bool ok1, ok2, ok3, ok4;
+                float th = m_UIMeshing.lineEdit_1->text().toFloat(&ok1);
+                float bl = m_UIMeshing.lineEdit_2->text().toFloat(&ok2);
+                int smth = m_UIMeshing.lineEdit_3->text().toInt(&ok3);
+                float ds = m_UIMeshing.lineEdit_4->text().toFloat(&ok4);
 
                 //Set default values
-                if (!ok1 || !ok2 || !ok3 || !ok4 || !ok5)
+                if (!ok1 || !ok2 || !ok3 || !ok4)
                     QMessageBox::warning(NULL, "Attention", "Reverting to default parameters!");
-                if (!ok1) iter = 1;
-                if (!ok2) th   = 0.5;
-                if (!ok3) blur = 0;
-                if (!ok4) smth = 10;
-                if (!ok5) ds   = 0.9;
+                if (!ok1) th   = 0.5;
+                if (!ok2) bl   = 0.8;
+                if (!ok3) smth = 3;
+                if (!ok4) ds   = 0.5;
                 //_if
 
+                //Mesh creation
                 this->BusyCursorOn();
-                path = directory + mitk::IOUtil::GetDirectorySeparator() + "temp.nii";
-                mitk::IOUtil::Save(image, path.toStdString());
-                mitk::ProgressBar::GetInstance()->AddStepsToDo(3);
-                std::unique_ptr<CemrgCommandLine> cmd(new CemrgCommandLine());
-                QString output = cmd->ExecuteSurf(directory, path, "close", iter, th, blur, smth);
-                QMessageBox::information(NULL, "Attention", "Command Line Operations Finished!");
-                this->BusyCursorOff();
-
-                //Decimate the mesh to visualise
-                mitk::Surface::Pointer shell = mitk::IOUtil::Load<mitk::Surface>(output.toStdString());
-                vtkSmartPointer<vtkDecimatePro> deci = vtkSmartPointer<vtkDecimatePro>::New();
-                deci->SetInputData(shell->GetVtkPolyData());
-                deci->SetTargetReduction(ds);
-                deci->PreserveTopologyOn();
-                deci->Update();
+                mitk::ProgressBar::GetInstance()->AddStepsToDo(2);
+                auto filter = mitk::ManualSegmentationToSurfaceFilter::New();
+                filter->SetInput(image);
+                filter->SetThreshold(th);
+                filter->SetUseGaussianImageSmooth(true);
+                filter->SetSmooth(true);
+                filter->SetMedianFilter3D(true);
+                filter->InterpolationOn();
+                filter->SetGaussianStandardDeviation(bl);
+                filter->SetMedianKernelSize(smth, smth, smth);
+                filter->SetDecimate(mitk::ImageToSurfaceFilter::QuadricDecimation);
+                filter->SetTargetReduction(ds);
+                filter->UpdateLargestPossibleRegion();
+                mitk::ProgressBar::GetInstance()->Progress();
+                mitk::Surface::Pointer shell = filter->GetOutput();
+                vtkSmartPointer<vtkPolyData> pd = shell->GetVtkPolyData();
+                pd->SetVerts(nullptr);
+                pd->SetLines(nullptr);
+                for (int i=0; i<pd->GetNumberOfPoints(); i++) {
+                    double* point = pd->GetPoint(i);
+                    point[0] = -point[0];
+                    point[1] = -point[1];
+                    pd->GetPoints()->SetPoint(i, point);
+                }//_for
                 vtkSmartPointer<vtkPolyDataConnectivityFilter> connectivityFilter = vtkSmartPointer<vtkPolyDataConnectivityFilter>::New();
-                connectivityFilter->SetInputConnection(deci->GetOutputPort());
+                connectivityFilter->SetInputData(pd);
                 connectivityFilter->ColorRegionsOff();
                 connectivityFilter->SetExtractionModeToLargestRegion();
                 connectivityFilter->Update();
-                vtkSmartPointer<vtkWindowedSincPolyDataFilter> smoother = vtkSmartPointer<vtkWindowedSincPolyDataFilter>::New();
-                smoother->SetInputConnection(connectivityFilter->GetOutputPort());
-                smoother->SetNumberOfIterations(30);
-                smoother->BoundarySmoothingOff();
-                smoother->FeatureEdgeSmoothingOff();
-                smoother->SetFeatureAngle(120.0);
-                smoother->SetPassBand(.1);
-                smoother->NonManifoldSmoothingOn();
-                smoother->NormalizeCoordinatesOn();
-                smoother->Update();
-                vtkSmartPointer<vtkCleanPolyData> cleaner = vtkSmartPointer<vtkCleanPolyData>::New();
-                cleaner->SetInputConnection(smoother->GetOutputPort());
-                cleaner->PieceInvariantOn();
-                cleaner->ConvertLinesToPointsOn();
-                cleaner->ConvertStripsToPolysOn();
-                cleaner->PointMergingOn();
-                cleaner->Update();
-                vtkSmartPointer<vtkPolyDataNormals> computeNormals = vtkSmartPointer<vtkPolyDataNormals>::New();
-                computeNormals->SetInputConnection(cleaner->GetOutputPort());
-                computeNormals->SetFeatureAngle(360.0f);
-                computeNormals->AutoOrientNormalsOn();
-                computeNormals->FlipNormalsOff();
-                computeNormals->Update();
-                shell->SetVtkPolyData(computeNormals->GetOutput());
+                vtkSmartPointer<vtkPolyDataNormals> normals = vtkSmartPointer<vtkPolyDataNormals>::New();
+                normals->AutoOrientNormalsOn();
+                normals->FlipNormalsOff();
+                normals->SetInputConnection(connectivityFilter->GetOutputPort());
+                normals->Update();
+                shell->SetVtkPolyData(normals->GetOutput());
                 surface = shell;
+                mitk::ProgressBar::GetInstance()->Progress();
+                this->BusyCursorOff();
 
                 //Tidy up data
-                remove(path.toStdString().c_str());
                 inputs->deleteLater();
 
             } else if (dialogCode == QDialog::Rejected) {
@@ -391,8 +382,29 @@ void WallThicknessCalculationsClipperView::CtrPlanes() {
         clipperActor->GetProperty()->SetOpacity(1.0);
         clipperActor->GetProperty()->SetColor(1,1,0);
         renderer->AddActor(clipperActor);
-        m_Controls.comboBox->insertItem(i, "Clipper " + QString::number(i+1));
         clipperActors.push_back(clipperActor);
+        QString comboText = "DEFAULT";
+        if (pickedSeedLabels.at(i) == 11)
+            comboText = "LEFT SUPERIOR PV";
+        else if (pickedSeedLabels.at(i) == 12)
+            comboText = "LEFT MIDDLE PV";
+        else if (pickedSeedLabels.at(i) == 13)
+            comboText = "LEFT INFERIOR PV";
+        else if (pickedSeedLabels.at(i) == 14)
+            comboText = "LEFT COMMON PV";
+        else if (pickedSeedLabels.at(i) == 15)
+            comboText = "RIGHT SUPERIOR PV";
+        else if (pickedSeedLabels.at(i) == 16)
+            comboText = "RIGHT MIDDLE PV";
+        else if (pickedSeedLabels.at(i) == 17)
+            comboText = "RIGHT INFERIOR PV";
+        else if (pickedSeedLabels.at(i) == 18)
+            comboText = "RIGHT COMMON PV";
+        else if (pickedSeedLabels.at(i) == 19)
+            comboText = "APPENDAGE CUT";
+        else if (pickedSeedLabels.at(i) == 20)
+            comboText = "APPENDAGE UNCUT";
+        m_Controls.comboBox->insertItem(i, comboText);
     }//_for
     m_Controls.widget_1->GetRenderWindow()->Render();
 
@@ -534,6 +546,7 @@ void WallThicknessCalculationsClipperView::CtrLinesSelector(int index) {
     m_Controls.slider->setValue(position);
     m_Controls.spinBox->setValue(adjust);
     pickedCutterSeeds->SetPoints(vtkSmartPointer<vtkPoints>::New());
+    m_Controls.widget_1->GetRenderWindow()->Render();
 }
 
 void WallThicknessCalculationsClipperView::Visualiser() {
@@ -711,15 +724,45 @@ void WallThicknessCalculationsClipperView::KeyCallBackFunc(vtkObject*, long unsi
 
         } else if (key == "Delete") {
 
+            //Clean up last dropped seed point
             vtkSmartPointer<vtkPoints> newPoints = vtkSmartPointer<vtkPoints>::New();
             vtkSmartPointer<vtkPoints> points = self->pickedLineSeeds->GetPoints();
             for (int i=0; i<points->GetNumberOfPoints()-1; i++)
                 newPoints->InsertNextPoint(points->GetPoint(i));
             self->pickedLineSeeds->SetPoints(newPoints);
-            if (self->pickedSeedLabels.empty() == false)
-                self->pickedSeedLabels.pop_back();
-            self->m_Controls.widget_1->GetRenderWindow()->Render();
+            vtkSmartPointer<vtkIdList> newPickedSeedIds = vtkSmartPointer<vtkIdList>::New();
+            newPickedSeedIds->Initialize();
+            vtkSmartPointer<vtkIdList> pickedSeedIds = self->pickedSeedIds;
+            for (int i=0; i<pickedSeedIds->GetNumberOfIds()-1; i++)
+                newPickedSeedIds->InsertNextId(pickedSeedIds->GetId(i));
+            self->pickedSeedIds = newPickedSeedIds;
 
+            if (self->pickedSeedLabels.empty() == false) {
+                int radioButtonNumber = self->pickedSeedLabels.back() - 10;
+                if (radioButtonNumber == 1)
+                    self->m_Labels.radioButton_1->setEnabled(true);
+                else if (radioButtonNumber == 2)
+                    self->m_Labels.radioButton_2->setEnabled(true);
+                else if (radioButtonNumber == 3)
+                    self->m_Labels.radioButton_3->setEnabled(true);
+                else if (radioButtonNumber == 4)
+                    self->m_Labels.radioButton_4->setEnabled(true);
+                else if (radioButtonNumber == 5)
+                    self->m_Labels.radioButton_5->setEnabled(true);
+                else if (radioButtonNumber == 6)
+                    self->m_Labels.radioButton_6->setEnabled(true);
+                else if (radioButtonNumber == 7)
+                    self->m_Labels.radioButton_7->setEnabled(true);
+                else if (radioButtonNumber == 8)
+                    self->m_Labels.radioButton_8->setEnabled(true);
+                else if (radioButtonNumber == 9)
+                    self->m_Labels.radioButton_9->setEnabled(true);
+                else if (radioButtonNumber == 10)
+                    self->m_Labels.radioButton10->setEnabled(true);
+                self->pickedSeedLabels.pop_back();
+            }//_if
+
+            self->m_Controls.widget_1->GetRenderWindow()->Render();
         }//_if_space
 
     } else if (self->clipper->GetCentreLinePolyPlanes().size() != 0 && !self->m_Controls.button_1->isEnabled() &&

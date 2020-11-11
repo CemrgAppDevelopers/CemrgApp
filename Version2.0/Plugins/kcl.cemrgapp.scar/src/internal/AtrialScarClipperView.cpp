@@ -33,10 +33,10 @@ PURPOSE.  See the above copyright notices for more information.
 #include <berryIWorkbenchWindow.h>
 
 // Qmitk
+#include <mitkImage.h>
 #include <mitkIOUtil.h>
 #include <mitkProgressBar.h>
 #include <mitkNodePredicateProperty.h>
-#include <mitkImage.h>
 #include "AtrialScarClipperView.h"
 #include "AtrialScarView.h"
 
@@ -356,8 +356,29 @@ void AtrialScarClipperView::CtrPlanes() {
         clipperActor->GetProperty()->SetOpacity(1.0);
         clipperActor->GetProperty()->SetColor(1,1,0);
         renderer->AddActor(clipperActor);
-        m_Controls.comboBox->insertItem(i, "Clipper " + QString::number(i+1));
         clipperActors.push_back(clipperActor);
+        QString comboText = "DEFAULT";
+        if (pickedSeedLabels.at(i) == 11)
+            comboText = "LEFT SUPERIOR PV";
+        else if (pickedSeedLabels.at(i) == 12)
+            comboText = "LEFT MIDDLE PV";
+        else if (pickedSeedLabels.at(i) == 13)
+            comboText = "LEFT INFERIOR PV";
+        else if (pickedSeedLabels.at(i) == 14)
+            comboText = "LEFT COMMON PV";
+        else if (pickedSeedLabels.at(i) == 15)
+            comboText = "RIGHT SUPERIOR PV";
+        else if (pickedSeedLabels.at(i) == 16)
+            comboText = "RIGHT MIDDLE PV";
+        else if (pickedSeedLabels.at(i) == 17)
+            comboText = "RIGHT INFERIOR PV";
+        else if (pickedSeedLabels.at(i) == 18)
+            comboText = "RIGHT COMMON PV";
+        else if (pickedSeedLabels.at(i) == 19)
+            comboText = "APPENDAGE CUT";
+        else if (pickedSeedLabels.at(i) == 20)
+            comboText = "APPENDAGE UNCUT";
+        m_Controls.comboBox->insertItem(i, comboText);
     }//_for
     m_Controls.widget_1->GetRenderWindow()->Render();
 
@@ -486,6 +507,7 @@ void AtrialScarClipperView::CtrLinesSelector(int index) {
     m_Controls.slider->setValue(position);
     m_Controls.spinBox->setValue(adjust);
     pickedCutterSeeds->SetPoints(vtkSmartPointer<vtkPoints>::New());
+    m_Controls.widget_1->GetRenderWindow()->Render();
 }
 
 void AtrialScarClipperView::Visualiser() {
@@ -663,15 +685,45 @@ void AtrialScarClipperView::KeyCallBackFunc(vtkObject*, long unsigned int, void*
 
         } else if (key == "Delete") {
 
+            //Clean up last dropped seed point
             vtkSmartPointer<vtkPoints> newPoints = vtkSmartPointer<vtkPoints>::New();
             vtkSmartPointer<vtkPoints> points = self->pickedLineSeeds->GetPoints();
             for (int i=0; i<points->GetNumberOfPoints()-1; i++)
                 newPoints->InsertNextPoint(points->GetPoint(i));
             self->pickedLineSeeds->SetPoints(newPoints);
-            if (self->pickedSeedLabels.empty() == false)
-                self->pickedSeedLabels.pop_back();
-            self->m_Controls.widget_1->GetRenderWindow()->Render();
+            vtkSmartPointer<vtkIdList> newPickedSeedIds = vtkSmartPointer<vtkIdList>::New();
+            newPickedSeedIds->Initialize();
+            vtkSmartPointer<vtkIdList> pickedSeedIds = self->pickedSeedIds;
+            for (int i=0; i<pickedSeedIds->GetNumberOfIds()-1; i++)
+                newPickedSeedIds->InsertNextId(pickedSeedIds->GetId(i));
+            self->pickedSeedIds = newPickedSeedIds;
 
+            if (self->pickedSeedLabels.empty() == false) {
+                int radioButtonNumber = self->pickedSeedLabels.back() - 10;
+                if (radioButtonNumber == 1)
+                    self->m_Labels.radioButton_1->setEnabled(true);
+                else if (radioButtonNumber == 2)
+                    self->m_Labels.radioButton_2->setEnabled(true);
+                else if (radioButtonNumber == 3)
+                    self->m_Labels.radioButton_3->setEnabled(true);
+                else if (radioButtonNumber == 4)
+                    self->m_Labels.radioButton_4->setEnabled(true);
+                else if (radioButtonNumber == 5)
+                    self->m_Labels.radioButton_5->setEnabled(true);
+                else if (radioButtonNumber == 6)
+                    self->m_Labels.radioButton_6->setEnabled(true);
+                else if (radioButtonNumber == 7)
+                    self->m_Labels.radioButton_7->setEnabled(true);
+                else if (radioButtonNumber == 8)
+                    self->m_Labels.radioButton_8->setEnabled(true);
+                else if (radioButtonNumber == 9)
+                    self->m_Labels.radioButton_9->setEnabled(true);
+                else if (radioButtonNumber == 10)
+                    self->m_Labels.radioButton10->setEnabled(true);
+                self->pickedSeedLabels.pop_back();
+            }//_if
+
+            self->m_Controls.widget_1->GetRenderWindow()->Render();
         }//_if_space
 
     } else if (self->clipper->GetCentreLinePolyPlanes().size() != 0 && !self->m_Controls.button_1->isEnabled() &&

@@ -34,6 +34,7 @@ PURPOSE.  See the above copyright notices for more information.
 #include <berryIWorkbenchWindow.h>
 
 // Qmitk
+#include <mitkImage.h>
 #include <QmitkIOUtil.h>
 #include <mitkIOUtil.h>
 #include <mitkProgressBar.h>
@@ -45,7 +46,6 @@ PURPOSE.  See the above copyright notices for more information.
 #include <mitkDataStorageEditorInput.h>
 #include <mitkImageCast.h>
 #include <mitkITKImageImport.h>
-#include <mitkImage.h>
 #include "kcl_cemrgapp_scar_Activator.h"
 #include "AtrialScarView.h"
 #include "AtrialScarClipperView.h"

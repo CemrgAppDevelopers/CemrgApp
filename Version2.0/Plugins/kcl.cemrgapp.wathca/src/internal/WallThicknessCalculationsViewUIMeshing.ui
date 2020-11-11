@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>222</width>
-    <height>227</height>
+    <height>196</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -19,13 +19,13 @@
   <property name="minimumSize">
    <size>
     <width>0</width>
-    <height>227</height>
+    <height>196</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
     <width>16777215</width>
-    <height>227</height>
+    <height>196</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -47,42 +47,32 @@
    </item>
    <item>
     <widget class="QLineEdit" name="lineEdit_1">
-     <property name="text">
-      <string/>
-     </property>
-     <property name="placeholderText">
-      <string>Iteration (default = 1)</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QLineEdit" name="lineEdit_2">
      <property name="placeholderText">
       <string>Threshold (default = 0.5)</string>
      </property>
     </widget>
    </item>
    <item>
-    <widget class="QLineEdit" name="lineEdit_3">
+    <widget class="QLineEdit" name="lineEdit_2">
      <property name="placeholderText">
-      <string>Blur (default = 0)</string>
+      <string>Blur (default = 0.8)</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLineEdit" name="lineEdit_3">
+     <property name="text">
+      <string/>
+     </property>
+     <property name="placeholderText">
+      <string>Smooth (default = 3)</string>
      </property>
     </widget>
    </item>
    <item>
     <widget class="QLineEdit" name="lineEdit_4">
-     <property name="text">
-      <string/>
-     </property>
      <property name="placeholderText">
-      <string>Smooth (default = 10)</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QLineEdit" name="lineEdit_5">
-     <property name="placeholderText">
-      <string>Decimate (default = 0.9)</string>
+      <string>Decimate (default = 0.5)</string>
      </property>
     </widget>
    </item>
