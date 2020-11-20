@@ -202,7 +202,7 @@ void MmcwViewPlot::PlotData() {
     plotValueVectors.clear();
     std::string plotType = m_Controls.comboBox->currentText().toStdString();
 
-    if (plotType.compare("Squeez") == 0) {
+    if (plotType.compare("Area Change") == 0) {
         refSurf = strain->ReferenceAHA(lmNode, segRatios, false);
         for (int i=0; i<noFrames*smoothness; i++) {
             plotValueVectors.push_back(strain->CalculateSqzPlot(i));
@@ -234,18 +234,18 @@ void MmcwViewPlot::PlotData() {
             holder->DeepCopy(strain->GetFlatSurfScalars());
             flatPlotScalars.push_back(holder);
         }
-    } else if (plotType.compare("Pacing site Squeez") == 0) {
-        refSurf = strain->ReferenceAHA(lmNode, pacingSegRatios, true);
+    } else if (plotType.compare("Longitudinal Large Strain") == 0) {
+        refSurf = strain->ReferenceAHA(lmNode, segRatios, false);
         for (int i=0; i<noFrames*smoothness; i++) {
-            plotValueVectors.push_back(strain->CalculateSqzPlot(i));
+            plotValueVectors.push_back(strain->CalculateStrainsPlot(i, lmNode, 4));
             vtkSmartPointer<vtkFloatArray> holder = vtkSmartPointer<vtkFloatArray>::New();
             holder->DeepCopy(strain->GetFlatSurfScalars());
             flatPlotScalars.push_back(holder);
         }
-    } else {
-        refSurf = strain->ReferenceAHA(lmNode, segRatios, false);
+    } else if (plotType.compare("Pacing site Squeez") == 0) {
+        refSurf = strain->ReferenceAHA(lmNode, pacingSegRatios, true);
         for (int i=0; i<noFrames*smoothness; i++) {
-            plotValueVectors.push_back(strain->CalculateStrainsPlot(i, lmNode, 4));
+            plotValueVectors.push_back(strain->CalculateSqzPlot(i));
             vtkSmartPointer<vtkFloatArray> holder = vtkSmartPointer<vtkFloatArray>::New();
             holder->DeepCopy(strain->GetFlatSurfScalars());
             flatPlotScalars.push_back(holder);
@@ -627,7 +627,7 @@ void MmcwViewPlot::WritePlotToCSV(QString dir) {
 
         bool ok;
         QString fileName = "Plot.csv";
-        if (m_Controls.comboBox->currentText().startsWith("S"))
+        if (m_Controls.comboBox->currentText().startsWith("A"))
             fileName = "SQZ.csv";
         else if (m_Controls.comboBox->currentText().startsWith("C"))
             fileName = "CRC.csv";

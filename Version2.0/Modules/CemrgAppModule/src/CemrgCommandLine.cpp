@@ -103,7 +103,7 @@ QString CemrgCommandLine::ExecuteSurf(QString dir, QString segPath, QString morp
 
     mitk::ProgressBar::GetInstance()->Progress();
     if (QString::compare(closeOutputPath, "ERROR_IN_PROCESSING")!=0) {
-        ExecuteTouch(dir + mitk::IOUtil::GetDirectorySeparator() + "segmentation.vtk");
+
         surfOutputPath = ExecuteExtractSurface(dir, closeOutputPath, "segmentation.vtk", th, blur);
         mitk::ProgressBar::GetInstance()->Progress();
 
@@ -184,7 +184,7 @@ QString CemrgCommandLine::ExecuteCreateCGALMesh(QString dir, QString outputName,
             QMessageBox::warning(NULL, "Please check the LOG", "MESHTOOLS3D libraries not found");
             MITK_WARN << "MESHTOOLS3D libraries not found. Please make sure the M3DLib folder is inside the directory:\n\t" + mitk::IOUtil::GetProgramPath();
         }//_if
-    }
+    }//_if
 
     //Setup EnVariable - in windows TBB_NUM_THREADS should be set in the system environment variables
 #ifndef _WIN32
@@ -201,19 +201,16 @@ QString CemrgCommandLine::ExecuteCreateCGALMesh(QString dir, QString outputName,
 
     if (!successful) {
         if (!_useDockerContainers) {
-
             MITK_WARN << "MESHTOOLS3D did not produce a good outcome. Trying with the MESHTOOLS3D Docker container.";
             SetUseDockerContainersOn();
             return ExecuteCreateCGALMesh(dir, outputName, paramsFullPath, segmentationName);
-
         } else {
-
             MITK_WARN << "MESHTOOLS3D Docker container did not produce a good outcome.";
             return "ERROR_IN_PROCESSING";
-
-        }//_if_containers
-    } else
+        }
+    } else {
         return outAbsolutePath;
+    }
 }
 
 void CemrgCommandLine::ExecuteTracking(QString dir, QString imgTimes, QString param, QString output) {
@@ -277,7 +274,7 @@ void CemrgCommandLine::ExecuteTracking(QString dir, QString imgTimes, QString pa
             MITK_WARN << "MIRTK libraries not found. Please make sure the MLib folder is inside the directory;\n\t"+
                          mitk::IOUtil::GetProgramPath();
         }//_if
-    }
+    }//_if
 
     bool successful = ExecuteCommand(executableName, arguments, outAbsolutePath);
 
@@ -391,8 +388,8 @@ void CemrgCommandLine::ExecuteRegistration(QString dir, QString fixed, QString m
             ExecuteRegistration(dir, fixed, moving, transformFileName, modelname);
         } else {
             MITK_WARN << "Local MIRTK libraries did not produce a good outcome.";
-        }//_if
-    }//_if
+        }
+    }
 }
 
 void CemrgCommandLine::ExecuteTransformation(QString dir, QString imgname, QString regname, QString transformFileFullPath) {
@@ -464,13 +461,14 @@ void CemrgCommandLine::ExecuteTransformation(QString dir, QString imgname, QStri
             ExecuteTransformation(dir, imgname, regname, transformFileFullPath);
         } else {
             MITK_WARN << "Local MIRTK libraries did not produce a good outcome.";
-        }//_if
-    }//_if
+        }
+    }
 }
 
 void CemrgCommandLine::ExecuteSimpleTranslation(QString dir, QString sourceMeshP, QString targetMeshP, QString transformFileName, bool transformThePoints) {
 
     MITK_INFO << "[ATTENTION] Attempting INIT-DOF.";
+
     QString aPath, executableName, commandName, sourceMeshPath, targetMeshPath, outAbsolutePath, prodPath;
     QStringList arguments;
     QDir mirtkhome(dir);
@@ -534,7 +532,7 @@ void CemrgCommandLine::ExecuteSimpleTranslation(QString dir, QString sourceMeshP
             MITK_WARN << "MIRTK libraries not found. Please make sure the MLib folder is inside the directory;\n\t"+
                          mitk::IOUtil::GetProgramPath();
         }//_if
-    }
+    }//_if
 
     bool successful = ExecuteCommand(executableName, arguments, outAbsolutePath);
 
@@ -556,6 +554,7 @@ void CemrgCommandLine::ExecuteSimpleTranslation(QString dir, QString sourceMeshP
 QString CemrgCommandLine::ExecuteMorphologicalOperation(QString operation, QString dir, QString segPath, QString outputPath, int iter) {
 
     MITK_INFO << "[ATTENTION] Attempting Pointset transformation.";
+
     QString executablePath = "";
     QString executableName;
     QString commandName;
@@ -621,7 +620,7 @@ QString CemrgCommandLine::ExecuteMorphologicalOperation(QString operation, QStri
             MITK_WARN << "MIRTK libraries not found. Please make sure the MLib folder is inside the directory;\n\t"+
                          mitk::IOUtil::GetProgramPath();
         }//_if
-    }
+    }//_if
 
     bool successful = ExecuteCommand(executableName, arguments, outAbsolutePath);
 
@@ -642,6 +641,7 @@ QString CemrgCommandLine::ExecuteMorphologicalOperation(QString operation, QStri
 QString CemrgCommandLine::ExecuteExtractSurface(QString dir, QString segPath, QString outputPath,float th, int blur) {
 
     MITK_INFO << "[ATTENTION] Attempting Surface extraction.";
+
     QString executablePath = "";
     QString executableName;
     QString commandName;
@@ -700,7 +700,7 @@ QString CemrgCommandLine::ExecuteExtractSurface(QString dir, QString segPath, QS
             MITK_WARN << "MIRTK libraries not found. Please make sure the MLib folder is inside the directory;\n\t"+
                          mitk::IOUtil::GetProgramPath();
         }//_if
-    }
+    }//_if
 
     bool successful = ExecuteCommand(executableName, arguments, outAbsolutePath);
 
@@ -721,6 +721,7 @@ QString CemrgCommandLine::ExecuteExtractSurface(QString dir, QString segPath, QS
 QString CemrgCommandLine::ExecuteSmoothSurface(QString dir, QString segPath, QString outputPath, int smth) {
 
     MITK_INFO << "[ATTENTION] Attempting Surface extraction.";
+
     QString executablePath = "";
     QString executableName;
     QString commandName;
@@ -775,7 +776,7 @@ QString CemrgCommandLine::ExecuteSmoothSurface(QString dir, QString segPath, QSt
             MITK_WARN << "MIRTK libraries not found. Please make sure the MLib folder is inside the directory;\n\t"+
                          mitk::IOUtil::GetProgramPath();
         }//_if
-    }
+    }//_if
 
     bool successful = ExecuteCommand(executableName, arguments, outAbsolutePath);
 
@@ -787,7 +788,7 @@ QString CemrgCommandLine::ExecuteSmoothSurface(QString dir, QString segPath, QSt
         } else {
             MITK_WARN << "Local MIRTK libraries did not produce a good outcome.";
             return "ERROR_IN_PROCESSING";
-        }//_if_docker
+        }
     } else {
         return outAbsolutePath;
     }
@@ -796,6 +797,7 @@ QString CemrgCommandLine::ExecuteSmoothSurface(QString dir, QString segPath, QSt
 void CemrgCommandLine::ExecuteTransformationOnPoints(QString dir, QString meshFullPath, QString outputMeshFullPath, QString transformFileFullPath, double applyingIniTime) {
 
     MITK_INFO << "[ATTENTION] Attempting Pointset transformation.";
+
     QString executablePath = "";
     QString executableName;
     QString commandName = "transform-points";
@@ -863,7 +865,7 @@ void CemrgCommandLine::ExecuteTransformationOnPoints(QString dir, QString meshFu
             MITK_WARN << "MIRTK libraries not found. Please make sure the MLib folder is inside the directory;\n\t"+
                          mitk::IOUtil::GetProgramPath();
         }//_if
-    }
+    }//_if
 
     bool successful = ExecuteCommand(executableName, arguments, outAbsolutePath);
 
@@ -937,7 +939,7 @@ void CemrgCommandLine::ExecuteResamplingOnNifti(QString niiFullPath, QString out
             MITK_WARN << "MIRTK libraries not found. Please make sure the MLib folder is inside the directory;\n\t"+
                          mitk::IOUtil::GetProgramPath();
         }//_if
-    }
+    }//_if
 
     bool successful = ExecuteCommand(executableName, arguments, outAbsolutePath);
 
@@ -959,6 +961,7 @@ void CemrgCommandLine::ExecuteResamplingOnNifti(QString niiFullPath, QString out
 QString CemrgCommandLine::DockerCemrgNetPrediction(QString mra) {
 
     MITK_INFO << "[CEMRGNET] Attempting prediction using Docker";
+
     QString aPath = "";
 #if defined(__APPLE__)
     aPath = "/usr/local/bin/";
@@ -1063,9 +1066,9 @@ QString CemrgCommandLine::DockerDicom2Nifti(QString path2dicomfolder) {
     if (successful) {
         MITK_INFO << "Conversion successful.";
         outAbsolutePath = outPath;
-    } else{
+    } else {
         MITK_WARN << "Error with DICOM2NIFTI Docker container.";
-    }//_if
+    }
 
     return outAbsolutePath;
 }
@@ -1378,9 +1381,8 @@ bool CemrgCommandLine::CheckForStartedProcess() {
     if (debugvar) {
         QStringList errinfo = QProcess::systemEnvironment();
         QString errorInfoString = "";
-        for (int ix=0; ix < errinfo.size(); ix++) {
+        for (int ix=0; ix < errinfo.size(); ix++)
             errorInfoString += errinfo.at(ix) + " ";
-        }
         MITK_INFO << "SYSTEM ENVIRONMENT:";
         MITK_INFO << errorInfoString.toStdString();
     }
@@ -1392,13 +1394,14 @@ bool CemrgCommandLine::CheckForStartedProcess() {
 
     } else {
 
-        completion=true;
+        completion = true;
         MITK_WARN << "[ATTENTION] Process error!";
         MITK_INFO << "STATE:";
         MITK_INFO << process->state();
         MITK_INFO << "ERROR:";
         MITK_INFO << process->error();
-    }
+
+    }//_if
 
     return startedProcess;
 }
@@ -1412,7 +1415,17 @@ void CemrgCommandLine::ExecuteTouch(QString filepath) {
     QStringList arguments;
     commandName = "touch"; // touch filepath
     arguments << filepath;
-    ExecuteCommand(commandName, arguments, filepath);
+
+    completion = false;
+    process->start(executableName, arguments);
+
+    bool processStarted = CheckForStartedProcess();
+    while (!completion) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+    }
+
+    MITK_INFO(!processStarted) << "[ATTENTION] TOUCH Process never started.";
 #endif
 }
 
@@ -1420,9 +1433,23 @@ bool CemrgCommandLine::IsOutputSuccessful(QString outputFullPath) {
 
     MITK_INFO << "[ATTENTION] Checking for successful output on path:";
     MITK_INFO << outputFullPath.toStdString();
+
     QFileInfo finfo(outputFullPath);
-    bool res = finfo.exists();
-    MITK_INFO << (res ? "Successful output" : "Output file not found.");
+    bool fileExists = finfo.exists();
+    bool fileSizeTest = false;
+    bool res = false;
+
+    MITK_INFO << (fileExists ? "File exists." : "Output file not found.");
+    if(fileExists){
+        fileSizeTest = finfo.size() > 0;
+        if (fileSizeTest){
+            MITK_INFO << ("File size: " + QString::number(finfo.size())).toStdString();
+            res = true;
+        } else{
+            MITK_INFO << "File empty. Output unsuccessful";
+        }
+    }
+
     return res;
 }
 
@@ -1449,17 +1476,30 @@ bool CemrgCommandLine::ExecuteCommand(QString executableName, QStringList argume
 
     MITK_INFO << PrintFullCommand(executableName, arguments);
 
+    MITK_INFO << ("[ExecuteCommand] Creating empty file at output:" + outputPath).toStdString();
+    ExecuteTouch(outputPath);
+
     completion = false;
     process->start(executableName, arguments);
     bool successful = false;
     bool processStarted = CheckForStartedProcess();
+
     while (!completion) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
     }
-    if (processStarted){
+
+    if (processStarted)
         successful = IsOutputSuccessful(outputPath);
-    }
+#ifdef _WIN32
+    MITK_INFO << "[ATTENTION] command not necessary on Windows systems. Step ignored.";
+#else
+    if (successful) {
+        QFile(outputPath).copy(outputPath + "copy");
+        QFile(outputPath).remove();
+        QFile(outputPath + "copy").rename(outputPath);
+    }//_if
+#endif
 
     return successful;
 }
