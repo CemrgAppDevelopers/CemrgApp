@@ -229,7 +229,8 @@ void FibresView::LaplaceSolves(){
     }
 
     if(redoProcess){
-        LaplaceSolvesProcess();
+        // LaplaceSolvesProcess();
+        LaplaceSolvesOpenCarpProcess();
     }
 
     // laplace solves rectifying to be in the [0,1] range
@@ -448,11 +449,75 @@ void FibresView::ExtractSurfacesProcess(){
     }
 }
 
+void FibresView::LaplaceSolvesOpenCarpProcess(){
+    if(IsExtractSurfDone()){
+        std::unique_ptr<CemrgCommandLine> cmd(new CemrgCommandLine());
+        cmd->SetDockerImage("docker.opencarp.org/opencarp/opencarp:latest");
+
+        MITK_INFO << "Copying shift and cav files to _mod";
+        QFile::copy(shiftPts, modPathName+".pts");
+
+        if(QFile::exists(cavElem)){
+            QFile::remove(modPathName+".elem");
+            QFile::rename(cavElem, modPathName+".elem");
+        }
+        QStringList setToZero, setToOne, regionLabels;
+        regionLabels << tag_lvendo << tag_lvepi << tag_lvbase << tag_rvendo << tag_rvepi << tag_rvbase << tag_apex;
+        QMessageBox::warning(NULL, "Attention", "Operations may take several minutes.");
+
+        this->BusyCursorOn();
+        mitk::ProgressBar::GetInstance()->AddStepsToDo(5);
+        mitk::ProgressBar::GetInstance()->Progress();
+        MITK_INFO << "[LAPSOLVES] Apex to base";
+        setToZero << surfApex.left(surfApex.lastIndexOf(".vtx"));
+        setToOne << surfBase.left(surfBase.lastIndexOf(".vtx"));
+        QString lapApex_temp = cmd->OpenCarpDockerLaplaceSolves(dir, modName, "lap_apex", setToZero, setToOne, regionLabels);
+        setToZero.clear(); setToOne.clear();
+
+        mitk::ProgressBar::GetInstance()->Progress();
+
+        MITK_INFO << "[LAPSOLVES] Epi";
+        setToZero << surfLVendo.left(surfLVendo.lastIndexOf(".vtx"));
+        setToZero << surfRVendo.left(surfRVendo.lastIndexOf(".vtx"));
+        setToOne << surfEpi.left(surfEpi.lastIndexOf(".vtx"));
+        QString lapEpi_temp = cmd->OpenCarpDockerLaplaceSolves(dir, modName, "lap_epi", setToZero, setToOne, regionLabels);
+        setToZero.clear(); setToOne.clear();
+
+        mitk::ProgressBar::GetInstance()->Progress();
+
+        MITK_INFO << "[LAPSOLVES] LV";
+        setToZero << surfEpi.left(surfEpi.lastIndexOf(".vtx"));
+        setToZero << surfRVendo.left(surfRVendo.lastIndexOf(".vtx"));
+        setToOne << surfLVendo.left(surfLVendo.lastIndexOf(".vtx"));
+        QString lapLV_temp = cmd->OpenCarpDockerLaplaceSolves(dir, modName, "lap_lv", setToZero, setToOne, regionLabels);
+        setToZero.clear(); setToOne.clear();
+
+        mitk::ProgressBar::GetInstance()->Progress();
+
+        MITK_INFO << "[LAPSOLVES] RV";
+        setToZero << surfEpi.left(surfEpi.lastIndexOf(".vtx"));
+        setToZero << surfLVendo.left(surfLVendo.lastIndexOf(".vtx"));
+        setToOne << surfRVendo.left(surfRVendo.lastIndexOf(".vtx"));
+        QString lapRV_temp = cmd->OpenCarpDockerLaplaceSolves(dir, modName, "lap_rv", setToZero, setToOne, regionLabels);
+        setToZero.clear(); setToOne.clear();
+
+        mitk::ProgressBar::GetInstance()->Progress();
+        this->BusyCursorOff();
+
+        FinishedProcess("Laplace Solves", "Checking for inconsistencies");
+
+        laplaceSolvesDone = true;
+
+    } else{
+        QMessageBox::warning(NULL, "Attention",
+            "Surface files (.surf.vtx) not found! \nDo the Extract Surface Step");
+    }
+}
+
 void FibresView::LaplaceSolvesProcess(){
     if(IsExtractSurfDone()){
         std::unique_ptr<CemrgCommandLine> cmd(new CemrgCommandLine());
-        cmd->SetDockerImage("alonsojasl/meshtools3d-lapsolves:v1.0");
-        cmd->SetUseDockerContainersOff();
+        cmd->SetDockerImage("docker.opencarp.org/opencarp/opencarp:latest");
 
         MITK_INFO << "Copying shift and cav files to _mod";
         QFile::copy(shiftPts, modPathName+".pts");

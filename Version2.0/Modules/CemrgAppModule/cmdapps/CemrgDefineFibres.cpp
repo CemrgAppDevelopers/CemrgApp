@@ -269,10 +269,10 @@ int main(int argc, char* argv[]) {
         }
         ptsFileRead.close();
 
-        QString apex_name = path2files + basename + "_psi_ab_potential.dat";
-        QString epi_name = path2files + basename + "_phi_epi_potential.dat";
-        QString lv_name = path2files + basename + "_phi_lv_potential.dat";
-        QString rv_name = path2files + basename + "_phi_rv_potential.dat";
+        QString apex_name = path2files + basename + "_lap_apex_potential.dat";
+        QString epi_name = path2files + basename + "_lap_epi_potential.dat";
+        QString lv_name = path2files + basename + "_lap_lv_potential.dat";
+        QString rv_name = path2files + basename + "_lap_rv_potential.dat";
 
         MITK_INFO(verbose) << "Load in Laplace Solves.";
         std::vector<double> epi_v(nPts, 0.0), apex_v(nPts, 0.0), lv_v(nPts, 0.0), rv_v(nPts, 0.0);
@@ -299,15 +299,17 @@ int main(int argc, char* argv[]) {
         MITK_INFO(verbose) << ("Iterations: " + QString::number(nIter)).toStdString();
 
         if(readingrads){
-            grepi.open((path2files + basename + "_psi_ab.grad").toStdString());
-            grapex.open((path2files + basename + "_phi_epi.grad").toStdString());
-            grlv.open((path2files + basename + "_phi_lv.grad").toStdString());
-            grrv.open((path2files + basename + "_phi_rv.grad").toStdString());
+            MITK_INFO(verbose) << "Read in gradient files.";
+            grepi.open((path2files + basename + "_lap_apex.grad.vec").toStdString());
+            grapex.open((path2files + basename + "_lap_epi.grad.vec").toStdString());
+            grlv.open((path2files + basename + "_lap_lv.grad.vec").toStdString());
+            grrv.open((path2files + basename + "_lap_rv.grad.vec").toStdString());
+
         }
 
         double tol = 1e-7;
         outputFileWrite.open(writeOutFile.toStdString());
-        outputFileWrite << "2\n";
+        outputFileWrite << "2" << std::endl;
         MITK_INFO(verbose) << "Starting rule fibres...";
         for(int qx=0; qx<nIter; qx++){
             std::vector<int> elemIdx(4);
@@ -333,9 +335,7 @@ int main(int argc, char* argv[]) {
 
             MITK_INFO(debug) << ("[" + QString::number(qx) + "]").toStdString();
 
-            std::vector<double> epi_gradient, apex_gradient, lv_gradient, rv_gradient;
-            std::vector<double> ptsInEl = pointsInElem(elemIdx, pts);
-
+            std::vector<double> epi_gradient(3), apex_gradient(3), lv_gradient(3), rv_gradient(3);
             if(readingrads){
                 for (short int ix=0; ix<3; ix++){
                     grepi >> epi_gradient[ix];
@@ -344,6 +344,8 @@ int main(int argc, char* argv[]) {
                     grrv >> rv_gradient[ix];
                 }
             } else {
+
+                std::vector<double> ptsInEl = pointsInElem(elemIdx, pts);
                 epi_gradient = elementGradient2(elemIdx, ptsInEl, epi_v);
                 apex_gradient = elementGradient2(elemIdx, ptsInEl, apex_v);
                 lv_gradient = elementGradient2(elemIdx, ptsInEl, lv_v);
@@ -355,7 +357,6 @@ int main(int argc, char* argv[]) {
                 print_vec("lv_gradient"  , lv_gradient);
                 print_vec("rv_gradient"  , rv_gradient);
             }
-            std::cout << "print gradients" << '\n';
 
             Quaternion epi_axis, lv_axis, rv_axis;
             if (epi >= tol){
@@ -384,14 +385,10 @@ int main(int argc, char* argv[]) {
 
             double R[3][3];
             quaternionToRotation(q, R);
-
-
-            // Print out the fiber orientation for this element
-            if(qx<26){
-                std::cout << qx <<":" << std::setprecision(6) << R[0][0] << " "<< R[1][0] << " "<< R[2][0] << std::endl;
+            if(verbose && (qx%frequency==0)){
+                std::cout << "[" << qx << "]" << R[0][0] << " "<< R[1][0] << " "<< R[2][0] << " "<< R[0][2] << " "<< R[1][2] << " "<< R[2][2] << std::endl;
             }
-            outputFileWrite << R[0][0] << " "<< R[1][0] << " "<< R[2][0] << " "<< R[0][2] << " "<< R[1][2] << " "<< R[2][2] << '\n';
-
+            outputFileWrite << R[0][0] << " "<< R[1][0] << " "<< R[2][0] << " "<< R[0][2] << " "<< R[1][2] << " "<< R[2][2] << std::endl;
         }
 
         elemFileRead.close();

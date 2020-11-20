@@ -136,16 +136,16 @@
      </property>
     </widget>
    </item>
-   <item>
+   <item alignment="Qt::AlignHCenter|Qt::AlignVCenter">
     <widget class="QPushButton" name="btn_4_bis">
      <property name="toolTip">
-      <string>Do image processing</string>
+      <string>Start CemrgApp Fibres Generation view</string>
      </property>
      <property name="styleSheet">
       <string notr="true">text-align: left;</string>
      </property>
      <property name="text">
-      <string>   Step4 (bis): Generate Fibres </string>
+      <string>   StepX: Generate Fibres </string>
      </property>
     </widget>
    </item>

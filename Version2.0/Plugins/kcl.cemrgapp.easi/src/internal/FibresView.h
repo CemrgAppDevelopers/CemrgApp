@@ -68,6 +68,7 @@ public:
   void SetNames(); // sets all names for calculations
   void ExtractSurfacesProcess();
   void LaplaceSolvesProcess();
+  void LaplaceSolvesOpenCarpProcess();
   void GenerateFibresProcess();
 
   // helper functions

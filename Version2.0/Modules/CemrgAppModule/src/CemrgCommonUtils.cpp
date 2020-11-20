@@ -1008,7 +1008,7 @@ void CemrgCommonUtils::NormaliseFibreFiles(QString fibresPath, QString outputPat
     ffibres >> x;
     ffibres >> y;
     ffibres >> z;
-    fo << numVect;
+    fo << numVect << std::endl;
     while (!ffibres.eof()) {
         for (int i=0; i<numVect; i++) {
             norm=sqrt(x*x + y*y +z*z);
