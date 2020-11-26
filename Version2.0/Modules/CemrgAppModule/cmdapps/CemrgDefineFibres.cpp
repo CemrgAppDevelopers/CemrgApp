@@ -85,7 +85,7 @@ typedef struct {
   double k;
 } Quaternion;
 
-std::vector<double> elementGradient(std::vector<int> el, std::vector<double> pts, std::vector<double> phi);
+std::vector<double> elementGradient(std::vector<int> el, std::vector<double> thesePts, std::vector<double> phi);
 std::vector<double> elementGradient2(std::vector<int> el, std::vector<double> thesePts, std::vector<double> phi);
 std::vector<double> pointsInElem(std::vector<int> el, std::vector<double> pts);
 std::vector<double> invJacobianTranspose(std::vector<double> thesePts);
@@ -162,6 +162,7 @@ int main(int argc, char* argv[]) {
     auto parsedArgs = parser.parseArguments(argc, argv);
 
     if (parsedArgs.empty()){
+        MITK_INFO << parser.helpText();
         return EXIT_FAILURE;
     }
 
@@ -238,7 +239,7 @@ int main(int argc, char* argv[]) {
         double beta_endo = QString::fromStdString(beta_endo_str).toDouble();
         int iterations = QString::fromStdString(iterations_str).toInt();
         int frequency = QString::fromStdString(frequency_str).toInt();
-	    std::cout << "freq:" << frequency << std::endl;
+	    MITK_INFO(verbose) << "freq:" << frequency;
 
         QFileInfo fi(QString::fromStdString(meshfile));
         QString path2files = fi.absolutePath() + mitk::IOUtil::GetDirectorySeparator();
@@ -298,6 +299,7 @@ int main(int argc, char* argv[]) {
 
         MITK_INFO(verbose) << ("Iterations: " + QString::number(nIter)).toStdString();
 
+        std::vector<double> epiGrad, apexGrad, lvGrad, rvGrad;
         if(readingrads){
             MITK_INFO(verbose) << "Read in gradient files.";
             grepi.open((path2files + basename + "_lap_apex.grad.vec").toStdString());
@@ -305,6 +307,24 @@ int main(int argc, char* argv[]) {
             grlv.open((path2files + basename + "_lap_lv.grad.vec").toStdString());
             grrv.open((path2files + basename + "_lap_rv.grad.vec").toStdString());
 
+            epiGrad.resize(nIter*3);
+            apexGrad.resize(nIter*3);
+            lvGrad.resize(nIter*3);
+            rvGrad.resize(nIter*3);
+
+            for (int ix = 0; ix < nIter; ix++) {
+                for (int jx = 0; jx < 3; jx++) {
+                    grepi >> epiGrad[3*ix + jx];
+                    grapex >> apexGrad[3*ix + jx];
+                    grlv >> lvGrad[3*ix + jx];
+                    grrv >> rvGrad[3*ix + jx];
+                }
+            }
+
+            grepi.close();
+            grapex.close();
+            grlv.close();
+            grrv.close();
         }
 
         double tol = 1e-7;
@@ -333,25 +353,25 @@ int main(int argc, char* argv[]) {
             rv /= 4.0;
             epi /= 4.0;
 
-            MITK_INFO(debug) << ("[" + QString::number(qx) + "]").toStdString();
+            MITK_INFO(debug && qx<25) << ("[" + QString::number(qx) + "]").toStdString();
 
             std::vector<double> epi_gradient(3), apex_gradient(3), lv_gradient(3), rv_gradient(3);
             if(readingrads){
                 for (short int ix=0; ix<3; ix++){
-                    grepi >> epi_gradient[ix];
-                    grapex >> apex_gradient[ix];
-                    grlv >> lv_gradient[ix];
-                    grrv >> rv_gradient[ix];
+                    epi_gradient[ix] = epiGrad[3*qx + ix];
+                    apex_gradient[ix] = apexGrad[3*qx + ix];
+                    lv_gradient[ix] = lvGrad[3*qx + ix];
+                    rv_gradient[ix] = rvGrad[3*qx + ix];
                 }
             } else {
 
                 std::vector<double> ptsInEl = pointsInElem(elemIdx, pts);
-                epi_gradient = elementGradient2(elemIdx, ptsInEl, epi_v);
-                apex_gradient = elementGradient2(elemIdx, ptsInEl, apex_v);
-                lv_gradient = elementGradient2(elemIdx, ptsInEl, lv_v);
-                rv_gradient = elementGradient2(elemIdx, ptsInEl, rv_v);
+                epi_gradient = elementGradient(elemIdx, ptsInEl, epi_v);
+                apex_gradient = elementGradient(elemIdx, ptsInEl, apex_v);
+                lv_gradient = elementGradient(elemIdx, ptsInEl, lv_v);
+                rv_gradient = elementGradient(elemIdx, ptsInEl, rv_v);
             }
-            if(debug){
+            if(debug && qx<25){
                 print_vec("epi_gradient" , epi_gradient);
                 print_vec("apex_gradient", apex_gradient);
                 print_vec("lv_gradient"  , lv_gradient);
@@ -361,21 +381,21 @@ int main(int argc, char* argv[]) {
             Quaternion epi_axis, lv_axis, rv_axis;
             if (epi >= tol){
               epi_axis = axisSystem(apex_gradient, epi_gradient);
-              if(debug){
+              if(debug && qx<25){
                   print_quaternion("epi_axis", epi_axis);
               }
             }
 
             if (lv >= tol){
               lv_axis = axisSystem(apex_gradient, lv_gradient);
-              if(debug){
+              if(debug && qx<25){
                   print_quaternion("lv_axis", lv_axis);
               }
             }
 
             if (rv >= tol){
               rv_axis = axisSystem(apex_gradient, rv_gradient);
-              if(debug){
+              if(debug && qx<25){
                   print_quaternion("rv_axis", rv_axis);
               }
             }
@@ -384,21 +404,18 @@ int main(int argc, char* argv[]) {
             q = biv_interpolate(epi_axis, lv_axis, rv_axis, epi, lv, rv, alpha_epi, alpha_endo, beta_epi, beta_endo);
 
             double R[3][3];
+            int precision = 8;
             quaternionToRotation(q, R);
             if(verbose && (qx%frequency==0)){
-                std::cout << "[" << qx << "]" << R[0][0] << " "<< R[1][0] << " "<< R[2][0] << " "<< R[0][2] << " "<< R[1][2] << " "<< R[2][2] << std::endl;
+                std::cout << "[" << qx << "]";
+                std::cout << std::fixed << std::setprecision(precision) << R[0][0] << " "<< R[1][0] << " "<< R[2][0] << " ";
+                std::cout << std::fixed << std::setprecision(precision) << R[0][2] << " "<< R[1][2] << " "<< R[2][2] << std::endl;
             }
-            outputFileWrite << R[0][0] << " "<< R[1][0] << " "<< R[2][0] << " "<< R[0][2] << " "<< R[1][2] << " "<< R[2][2] << std::endl;
+            outputFileWrite << std::fixed << std::setprecision(precision) << R[0][0] << " "<< R[1][0] << " "<< R[2][0] << " "<< R[0][2] << " "<< R[1][2] << " "<< R[2][2] << std::endl;
         }
 
         elemFileRead.close();
         outputFileWrite.close();
-        if(readingrads){
-            grepi.close();
-            grapex.close();
-            grlv.close();
-            grrv.close();
-        }
 
         bool success = true;
         MITK_INFO(success) << "Successful program";
@@ -427,9 +444,9 @@ std::vector<double> pointsInElem(std::vector<int> el, std::vector<double> pts){
 
 }
 std::vector<double> elementGradient(std::vector<int> el, std::vector<double> thesePts, std::vector<double> phi){
-    std::vector<double> gradient(3,0);
-    std::vector<double> thesePhi(4,0);
-    std::vector<double> dphi0(4*3,0), dphi(4*3,0);
+    std::vector<double> gradient(3,0.0);
+    std::vector<double> thesePhi(4,0.0);
+    std::vector<double> dphi0(4*3,0.0), dphi(4*3,0.0);
 
     dphi0[4*0 + 0] = -1; dphi0[4*0 + 1] = -1; dphi0[4*0 + 2] = -1;
     dphi0[4*1 + 0] =  1; dphi0[4*1 + 1] =  0; dphi0[4*1 + 2] =  0;
@@ -469,8 +486,8 @@ std::vector<double> elementGradient(std::vector<int> el, std::vector<double> the
 }
 
 std::vector<double> elementGradient2(std::vector<int> el, std::vector<double> thesePts, std::vector<double> phi){
-    std::vector<double> gradient(3,0);
-    std::vector<double> thesePhi(4,0);
+    std::vector<double> gradient(3,0.0);
+    std::vector<double> thesePhi(4,0.0);
     std::vector<std::vector<double> > dphi0, dphi;
 
     dphi0.resize(4);
@@ -514,11 +531,10 @@ std::vector<double> elementGradient2(std::vector<int> el, std::vector<double> th
     }
 
     return gradient;
-
 }
 
 double quaternionDot(const Quaternion a, const Quaternion b) {
-  return a.s*b.s + a.i*b.i +a.j*b.j +a.k*b.k;
+  return (a.s*b.s + a.i*b.i +a.j*b.j +a.k*b.k);
 }
 
 Quaternion quaternionMult(const Quaternion a, const Quaternion b) {
@@ -726,10 +742,10 @@ Quaternion biv_interpolate(Quaternion epi_axis, Quaternion lv_axis, Quaternion r
   } else {
 
     double lap_septum = lap_lv + lap_rv;
-    double alpha_septum = ((90. - alpha_endo) * lap_lv/lap_septum +
-                         (90. + alpha_endo) * lap_rv/lap_septum) * M_PI/180.;
-    double beta_septum  = (- beta_endo * lap_lv/lap_septum
-                         + beta_endo * lap_rv/lap_septum) * M_PI/180.;
+    double alpha_septum = ((90. - alpha_endo) * (lap_lv/lap_septum) +
+                         (90. + alpha_endo) * (lap_rv/lap_septum)) * M_PI/180.;
+    double beta_septum  = ((-1.0*beta_endo) * (lap_lv/lap_septum)
+                         + beta_endo * (lap_rv/lap_septum)) * M_PI/180.;
 
     Quaternion lv_q;
     if (lap_lv >= tol) {
@@ -754,10 +770,8 @@ Quaternion biv_interpolate(Quaternion epi_axis, Quaternion lv_axis, Quaternion r
     if (lap_epi < tol) {
       q = septum_q;
     } else {
-      double alpha_wall = ((alpha_epi  + 90.) * lap_epi +
-                         (alpha_endo + 90.) * lap_septum) * M_PI/180.;
-      double beta_wall  = (beta_epi * lap_epi
-                         + beta_endo * lap_septum) * M_PI/180.;
+      double alpha_wall = ((alpha_epi  + 90.) * lap_epi + (alpha_endo + 90.) * lap_septum) * M_PI/180.;
+      double beta_wall  = (beta_epi * lap_epi + beta_endo * lap_septum) * M_PI/180.;
       Quaternion epi_q = rotateAxis(epi_axis, alpha_wall, beta_wall);
       q = slerp(lap_epi, epi_q, lap_septum, septum_q);
     }
@@ -767,8 +781,8 @@ Quaternion biv_interpolate(Quaternion epi_axis, Quaternion lv_axis, Quaternion r
 }
 
 std::vector<double> invJacobianTranspose(std::vector<double> thesePts){
-    std::vector<double> Jt(3*3, 0), invJt(3*3, 0);
-    std::vector<double> p0(3,0);
+    std::vector<double> Jt(3*3,0.0), invJt(3*3,0.0);
+    std::vector<double> p0(3,0.0);
     for (int ix = 0; ix < 3; ix++) {
         p0[ix] = thesePts[4*0 + ix];
     }

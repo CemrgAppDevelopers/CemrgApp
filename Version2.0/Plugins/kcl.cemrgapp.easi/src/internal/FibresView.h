@@ -128,6 +128,8 @@ private:
     void PreSurf();
     void Visualiser(int vtkIndex=0);
 
+    CemrgCarpUtils carpUtils;
+
     static QString basename; // normally 'mesh'
     static QString directory; // working directory passed from EASI view
 
@@ -145,6 +147,7 @@ private:
     double alpha_endo, alpha_epi, beta_endo, beta_epi;
     bool preprocessDone, extractSurfaceDone, laplaceSolvesDone, fibresDone;
     bool fibresVtkCreated;
+    bool useInnerFibresSoftware;
 
     vtkSmartPointer<vtkRenderer> renderer;
     vtkSmartPointer<vtkActor> meshActor;

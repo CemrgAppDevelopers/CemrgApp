@@ -73,6 +73,7 @@ PURPOSE.  See the above copyright notices for more information.
 // MitkCemrgAppModule
 #include <CemrgCommandLine.h>
 #include <CemrgCommonUtils.h>
+#include <CemrgCarpUtils.h>
 
 QString FibresView::basename;
 QString FibresView::directory;
@@ -146,6 +147,8 @@ void FibresView::CreateQtPartControl(QWidget *parent) {
       m_Controls.btnZ_visualiseFibres->setEnabled(false);
       m_Controls.combo_selector->setEnabled(false);
   }
+
+  useInnerFibresSoftware = false;
 }
 
 // SLOTS
@@ -171,11 +174,11 @@ void FibresView::Preprocessing(){
         this->BusyCursorOn();
         mitk::ProgressBar::GetInstance()->AddStepsToDo(2);
 
-        CemrgCommonUtils::OriginalCoordinates(imagePath, ptsFull, shiftPts);
+        CemrgCarpUtils::OriginalCoordinates(imagePath, ptsFull, shiftPts);
         mitk::ProgressBar::GetInstance()->Progress();
 
         MITK_INFO << "[FibresView] Centre of Gravity calculation";
-        CemrgCommonUtils::CalculateCentreOfGravity(shiftPts, elemFull, cogPts);
+        CemrgCarpUtils::CalculateCentreOfGravity(shiftPts, elemFull, cogPts);
         mitk::ProgressBar::GetInstance()->Progress();
         this->BusyCursorOff();
 
@@ -184,7 +187,7 @@ void FibresView::Preprocessing(){
 
         MITK_INFO << "[FibresView] Region Mapping";
         this->BusyCursorOn();
-        CemrgCommonUtils::RegionMapping(dilatedCavPath, cogPts, elemFull, cavElem);
+        CemrgCarpUtils::RegionMapping(dilatedCavPath, cogPts, elemFull, cavElem);
         this->BusyCursorOff();
 
         FinishedProcess("Preprocessing");
@@ -193,7 +196,7 @@ void FibresView::Preprocessing(){
 
     QMessageBox::warning(NULL, "Attention", "Continuing for VTK creation.");
     this->BusyCursorOn();
-    CemrgCommonUtils::CarpToVtk(cavElem, shiftPts, vtkPath);
+    CemrgCarpUtils::CarpToVtk(cavElem, shiftPts, vtkPath);
     this->BusyCursorOff();
     FinishedProcess("VTK creation");
 }
@@ -235,10 +238,10 @@ void FibresView::LaplaceSolves(){
 
     // laplace solves rectifying to be in the [0,1] range
     QMessageBox::warning(NULL, "Attention", "Checking laplace solve files.");
-    CemrgCommonUtils::RectifyFileValues(lapApex);
-    CemrgCommonUtils::RectifyFileValues(lapEpi);
-    CemrgCommonUtils::RectifyFileValues(lapLV);
-    CemrgCommonUtils::RectifyFileValues(lapRV);
+    CemrgCarpUtils::RectifyFileValues(lapApex);
+    CemrgCarpUtils::RectifyFileValues(lapEpi);
+    CemrgCarpUtils::RectifyFileValues(lapLV);
+    CemrgCarpUtils::RectifyFileValues(lapRV);
 
     if(laplaceSolvesDone){
         int vtkreply = QMessageBox::question(NULL, "Question",
@@ -249,19 +252,19 @@ void FibresView::LaplaceSolves(){
             mitk::ProgressBar::GetInstance()->AddStepsToDo(4);
 
             std::vector<double> scalarFieldApex = ReadInScalarField(lapApex);
-            CemrgCommonUtils::AppendScalarFieldToVtk(vtkPath, "APEX", "POINT", scalarFieldApex);
+            CemrgCarpUtils::AppendScalarFieldToVtk(vtkPath, "APEX", "POINT", scalarFieldApex);
             mitk::ProgressBar::GetInstance()->Progress();
 
             std::vector<double> scalarFieldEpi = ReadInScalarField(lapEpi);
-            CemrgCommonUtils::AppendScalarFieldToVtk(vtkPath, "EPI", "POINT", scalarFieldEpi, false);
+            CemrgCarpUtils::AppendScalarFieldToVtk(vtkPath, "EPI", "POINT", scalarFieldEpi, false);
             mitk::ProgressBar::GetInstance()->Progress();
 
             std::vector<double> scalarFieldLV = ReadInScalarField(lapLV);
-            CemrgCommonUtils::AppendScalarFieldToVtk(vtkPath, "LV", "POINT", scalarFieldLV, false);
+            CemrgCarpUtils::AppendScalarFieldToVtk(vtkPath, "LV", "POINT", scalarFieldLV, false);
             mitk::ProgressBar::GetInstance()->Progress();
 
             std::vector<double> scalarFieldRV = ReadInScalarField(lapRV);
-            CemrgCommonUtils::AppendScalarFieldToVtk(vtkPath, "RV", "POINT", scalarFieldRV, false);
+            CemrgCarpUtils::AppendScalarFieldToVtk(vtkPath, "RV", "POINT", scalarFieldRV, false);
             mitk::ProgressBar::GetInstance()->Progress();
             this->BusyCursorOff();
             FinishedProcess("VTK file Laplace Solves");
@@ -296,7 +299,7 @@ void FibresView::GenerateFibres(){
             mitk::ProgressBar::GetInstance()->AddStepsToDo(2);
             std::vector<double> fibresVectorField = ReadInVectorField(fibresFile);
             mitk::ProgressBar::GetInstance()->Progress();
-            CemrgCommonUtils::AppendVectorFieldToVtk(vtkPath, "fibres", "CELL", fibresVectorField, true);
+            CemrgCarpUtils::AppendVectorFieldToVtk(vtkPath, "fibres", "CELL", fibresVectorField, true);
             mitk::ProgressBar::GetInstance()->Progress();
             this->BusyCursorOff();
             FinishedProcess("VTK file Fibres");
@@ -577,15 +580,43 @@ void FibresView::GenerateFibresProcess(){
             if(!ok2) SetDefaultAngleAlphaEpi();
             if(!ok3) SetDefaultAngleBetaEndo();
             if(!ok4) SetDefaultAngleBetaEpi();
+
+
         } else {
             QMessageBox::warning(NULL, "Attention", "Process cancelled.");
             return;
         }
 
-        fibresFile = cmd->DockerComputeFibres(dir, modName, lapApex, lapEpi, lapLV, lapRV, "biv", alpha_endo, alpha_epi, beta_endo, beta_epi);
+        if(useInnerFibresSoftware){
+            carpUtils->SetAlphaEndo(alpha_endo);
+            carpUtils->SetAlphaEpi(alpha_epi);
+            carpUtils->SetBetaEndo(beta_endo);
+            carpUtils->SetBetaEpi(beta_epi);
+
+            carpUtils->ReadElementFile();
+            carpUtils->ReadPointsFile();
+            carpUtils->ReadLaplaceSolvesFile(lapApex, 0);
+            carpUtils->ReadLaplaceSolvesFile(lapEpi, 1);
+            carpUtils->ReadLaplaceSolvesFile(lapLV, 2);
+            carpUtils->ReadLaplaceSolvesFile(lapRV, 3);
+
+            // use docker to generate Gradient files, then read them
+
+            carpUtils->ReadElementGradientFile(gradientApex, 0);
+            carpUtils->ReadElementGradientFile(gradientEpi, 1);
+            carpUtils->ReadElementGradientFile(gradientLV, 2);
+            carpUtils->ReadElementGradientFile(gradientRV, 3);
+
+            carpUtils->DefineFibres();
+
+
+        } else{
+            fibresFile = cmd->DockerComputeFibres(dir, modName, lapApex, lapEpi, lapLV, lapRV, "biv", alpha_endo, alpha_epi, beta_endo, beta_epi);
+        }
+
         FinishedProcess("Fibres generation", "Beginning normalisation of vectors.");
 
-        CemrgCommonUtils::NormaliseFibreFiles(fibresFile, modPathName+"_fibres_norm.lon");
+        CemrgCarpUtils::NormaliseFibreFiles(fibresFile, modPathName+"_fibres_norm.lon");
         fibresDone = true;
         FinishedProcess("Fibres normalisation");
     } else{
@@ -601,6 +632,9 @@ void FibresView::SetNames(){
 
     elemFull = dir + mitk::IOUtil::GetDirectorySeparator() + name + ".elem";
     ptsFull =  dir + mitk::IOUtil::GetDirectorySeparator() + name + ".pts";
+
+    carpUtils->SetElementFilename(elemFull);
+    carpUtils->UpdateFileNames();
 
     std::ifstream fElem(elemFull.toStdString());
     std::ifstream fPts(ptsFull.toStdString());
@@ -759,11 +793,11 @@ bool FibresView::IsExtractSurfDone(){
 
     if(isExtractSurf){
         MITK_INFO << "Check: surface files number of points.";
-        isSurfFileCorrect = (CemrgCommonUtils::GetTotalFromCarpFile(surfApex)>0) &&
-                        (CemrgCommonUtils::GetTotalFromCarpFile(surfBase)>0) &&
-                        (CemrgCommonUtils::GetTotalFromCarpFile(surfEpi)>0) &&
-                        (CemrgCommonUtils::GetTotalFromCarpFile(surfLVendo)>0) &&
-                        (CemrgCommonUtils::GetTotalFromCarpFile(surfRVendo)>0);
+        isSurfFileCorrect = (CemrgCarpUtils::GetTotalFromCarpFile(surfApex)>0) &&
+                        (CemrgCarpUtils::GetTotalFromCarpFile(surfBase)>0) &&
+                        (CemrgCarpUtils::GetTotalFromCarpFile(surfEpi)>0) &&
+                        (CemrgCarpUtils::GetTotalFromCarpFile(surfLVendo)>0) &&
+                        (CemrgCarpUtils::GetTotalFromCarpFile(surfRVendo)>0);
     }
 
     MITK_INFO(!isExtractSurf) << "Surface files not created.";

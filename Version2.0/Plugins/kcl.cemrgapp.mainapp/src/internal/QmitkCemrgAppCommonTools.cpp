@@ -229,7 +229,7 @@ void QmitkCemrgAppCommonTools::ConvertCarpToVtk(){
     int regionScalarsReply = QMessageBox::question(NULL, "Question",
             "Include region as (cell) scalar field?", QMessageBox::Yes, QMessageBox::No);
 
-    CemrgCommonUtils::CarpToVtk(pathElem, pathPts, vtkPath, (regionScalarsReply==QMessageBox::Yes));
+    CemrgCarpUtils::CarpToVtk(pathElem, pathPts, vtkPath, (regionScalarsReply==QMessageBox::Yes));
 
     int appendScalarFieldReply = QMessageBox::question(NULL, "Question",
             "Append a scalar field from a file?", QMessageBox::Yes, QMessageBox::No);
@@ -237,15 +237,15 @@ void QmitkCemrgAppCommonTools::ConvertCarpToVtk(){
     if (appendScalarFieldReply==QMessageBox::Yes){
         QString path="";
         QString typeData="";
-        int nElem = CemrgCommonUtils::GetTotalFromCarpFile(pathElem);
-        int nPts = CemrgCommonUtils::GetTotalFromCarpFile(pathPts);
+        int nElem = CemrgCarpUtils::GetTotalFromCarpFile(pathElem);
+        int nPts = CemrgCarpUtils::GetTotalFromCarpFile(pathPts);
         int nField;
         int countFields=0;
 
         while (appendScalarFieldReply==QMessageBox::Yes){
             path = QFileDialog::getOpenFileName(NULL, "Open Scalar field (.dat) file", dir.toStdString().c_str());
             QFileInfo fi2(path);
-            std::vector<double> field = CemrgCommonUtils::ReadScalarField(path);
+            std::vector<double> field = CemrgCarpUtils::ReadScalarField(path);
 
             nField = field.size();
             MITK_INFO << ("FieldSize: " + QString::number(nField)).toStdString();
@@ -257,7 +257,7 @@ void QmitkCemrgAppCommonTools::ConvertCarpToVtk(){
                 MITK_INFO << "Inconsistent file size";
                 break;
             }
-            CemrgCommonUtils::AppendScalarFieldToVtk(vtkPath, fi2.baseName(), typeData, field, (countFields==0));
+            CemrgCarpUtils::AppendScalarFieldToVtk(vtkPath, fi2.baseName(), typeData, field, (countFields==0));
             countFields++;
             appendScalarFieldReply = QMessageBox::question(NULL, "Question",
                     "Append another scalar field from a file?", QMessageBox::Yes, QMessageBox::No);
