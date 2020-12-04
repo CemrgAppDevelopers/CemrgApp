@@ -279,7 +279,7 @@ int main(int argc, char* argv[]) {
         QString elemPath = QString::fromStdString(inElem);
         QString bpPath = QString::fromStdString(inBp);
         QString outputPath = QString::fromStdString(outFilename);
-        bool success;
+        bool success = false;
         if(algorithmNumber==1){ // original_coords
             MITK_INFO << "ORIGINAL COORDINATES";
             success = originalCoordinates(imagePath, pointPath, outputPath, verbose);

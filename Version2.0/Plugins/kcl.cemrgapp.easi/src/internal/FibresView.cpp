@@ -679,8 +679,9 @@ void FibresView::SetDefaultTag(QString tagname){
 
 void FibresView::CheckTag(QString someTag, QString tagname){
     bool isOK;
-    int numTest = someTag.toInt(&isOK);
+    someTag.toInt(&isOK);
     if(!isOK){
+
         if(!someTag.contains(",") && !someTag.contains("-")){
             MITK_INFO << ("Reverting " + tagname + ": " + someTag + " to default value").toStdString();
             SetDefaultTag(tagname);

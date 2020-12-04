@@ -1417,7 +1417,7 @@ void CemrgCommandLine::ExecuteTouch(QString filepath) {
     arguments << filepath;
 
     completion = false;
-    process->start(executableName, arguments);
+    process->start(commandName, arguments);
 
     bool processStarted = CheckForStartedProcess();
     while (!completion) {

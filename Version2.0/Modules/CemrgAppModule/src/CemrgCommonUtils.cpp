@@ -1060,7 +1060,7 @@ void CemrgCommonUtils::CarpToVtk(QString elemPath, QString ptsPath, QString outp
     elemFileRead.open(elemPath.toStdString());
     elemFileRead >> nElem;
     std::string type;
-    int p0, p1, p2, p3, region;
+    int p0, p1, p2, p3;
     std::vector<double> regionVector(nElem);
     VTKFile << "CELLS " << nElem << " " << (4+1)*nElem << std::endl;
     for (int ix = 0; ix < nElem; ix++) {
