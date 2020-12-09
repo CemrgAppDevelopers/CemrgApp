@@ -560,7 +560,6 @@ void FibresView::LaplaceSolvesProcess(){
 void FibresView::GenerateFibresProcess(){
     if(IsLaplaceSolvesDone()){
         std::unique_ptr<CemrgCommandLine> cmd(new CemrgCommandLine());
-        cmd->SetDockerImage("alonsojasl/cemrg-fibres:v1.0");
         // Default values. Add gui to change them
         MITK_INFO << "[FibresView] Selecting angles values from UI.";
         QDialog* inputs = new QDialog(0,0);
@@ -588,29 +587,36 @@ void FibresView::GenerateFibresProcess(){
         }
 
         if(useInnerFibresSoftware){
-            carpUtils->SetAlphaEndo(alpha_endo);
-            carpUtils->SetAlphaEpi(alpha_epi);
-            carpUtils->SetBetaEndo(beta_endo);
-            carpUtils->SetBetaEpi(beta_epi);
+            carpUtils.SetAlphaEndo(alpha_endo);
+            carpUtils.SetAlphaEpi(alpha_epi);
+            carpUtils.SetBetaEndo(beta_endo);
+            carpUtils.SetBetaEpi(beta_epi);
 
-            carpUtils->ReadElementFile();
-            carpUtils->ReadPointsFile();
-            carpUtils->ReadLaplaceSolvesFile(lapApex, 0);
-            carpUtils->ReadLaplaceSolvesFile(lapEpi, 1);
-            carpUtils->ReadLaplaceSolvesFile(lapLV, 2);
-            carpUtils->ReadLaplaceSolvesFile(lapRV, 3);
+            carpUtils.ReadElementFile();
+            carpUtils.ReadPointsFile();
+            carpUtils.ReadLaplaceSolvesFile(lapApex, 0);
+            carpUtils.ReadLaplaceSolvesFile(lapEpi, 1);
+            carpUtils.ReadLaplaceSolvesFile(lapLV, 2);
+            carpUtils.ReadLaplaceSolvesFile(lapRV, 3);
 
             // use docker to generate Gradient files, then read them
+            cmd->SetDockerImage("alonsojasl/cemrg-meshtool:v1.0");
+            //DockerExtractGradient(QString dir, QString meshname, QString idatName, QString odatName, bool elemGrad)
+            QString gradientApex = cmd->DockerExtractGradient(dir, modName, lapApex, modName + "_lap_apex");
+            QString gradientEpi = cmd->DockerExtractGradient(dir, modName, lapEpi, modName + "_lap_epi");
+            QString gradientLV = cmd->DockerExtractGradient(dir, modName, lapLV, modName + "_lap_lv");
+            QString gradientRV = cmd->DockerExtractGradient(dir, modName, lapRV, modName + "_lap_rv");
 
-            carpUtils->ReadElementGradientFile(gradientApex, 0);
-            carpUtils->ReadElementGradientFile(gradientEpi, 1);
-            carpUtils->ReadElementGradientFile(gradientLV, 2);
-            carpUtils->ReadElementGradientFile(gradientRV, 3);
+            carpUtils.ReadElementGradientFile(gradientApex, 0);
+            carpUtils.ReadElementGradientFile(gradientEpi, 1);
+            carpUtils.ReadElementGradientFile(gradientLV, 2);
+            carpUtils.ReadElementGradientFile(gradientRV, 3);
 
-            carpUtils->DefineFibres();
+            carpUtils.DefineFibres();
 
 
         } else{
+            cmd->SetDockerImage("alonsojasl/cemrg-fibres:v1.0");
             fibresFile = cmd->DockerComputeFibres(dir, modName, lapApex, lapEpi, lapLV, lapRV, "biv", alpha_endo, alpha_epi, beta_endo, beta_epi);
         }
 
@@ -633,8 +639,8 @@ void FibresView::SetNames(){
     elemFull = dir + mitk::IOUtil::GetDirectorySeparator() + name + ".elem";
     ptsFull =  dir + mitk::IOUtil::GetDirectorySeparator() + name + ".pts";
 
-    carpUtils->SetElementFilename(elemFull);
-    carpUtils->UpdateFileNames();
+    carpUtils.SetElementFilename(elemFull);
+    carpUtils.UpdateFileNames();
 
     std::ifstream fElem(elemFull.toStdString());
     std::ifstream fPts(ptsFull.toStdString());

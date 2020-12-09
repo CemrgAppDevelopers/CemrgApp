@@ -78,10 +78,11 @@ PURPOSE.  See the above copyright notices for more information.
 #include <QFileInfo>
 #include <QFileDialog>
 #include <QTextStream>
+
 #include "CemrgCarpUtils.h"
 
 // basics
-void CemrgCarpUtils::CemrgCarpUtils(){
+CemrgCarpUtils::CemrgCarpUtils(){
     elemPath = "";
     ptsPath = "" ;
     dir = "";
@@ -135,16 +136,16 @@ void CemrgCarpUtils::ReadElementFile(int nIter){
 
 void CemrgCarpUtils::ReadPointsFile(){
     if(ptsPath.isEmpty()){
-        MITK_ERROR << "Element path name not set.";
+        MITK_ERROR << "Points path name not set.";
         return;
     } else{
         std::ifstream fi(ptsPath.toStdString());
         if (fi){
             fi >> nPts;
             pts.resize(nPts*3);
-            for (int ix = 0; ix < total; ix++) {
-                for (int jx = 0; jx < 4; jx++) {
-                    fi >> pts[4*ix + jx];
+            for (int ix = 0; ix < nPts; ix++) {
+                for (int jx = 0; jx < 3; jx++) {
+                    fi >> pts[3*ix + jx];
                 }
             }
             fi.close();
@@ -190,14 +191,6 @@ double CemrgCarpUtils::DataCentre(std::vector<double> fullDatVector, std::vector
         result /= N;
     }
     return result;
-}
-
-std::vector<double> GradientAtElement(std::vector<double> fullGradient, std::vector<int> index){
-    std::vector<double> gradAtNode(3);
-    for (int jx = 0; jx < 3; jx++) {
-        gradAtNode[jx] = fullGradient[3*index + jx];
-    }
-    return gradAtNode;
 }
 
 std::vector<double> CemrgCarpUtils::ReadInFile(QString dataFilePath){
@@ -464,12 +457,12 @@ Quaternion CemrgCarpUtils::BiVInterpolate(Quaternion epi_axis, Quaternion lv_axi
     return q;
 }
 
-void CemrgCarpUtils::void DefineFibres(){
-    QString outPath = dir + mitk::IOUtil:GetDirectorySeparator()+bname+"_fibres.lon";
+void CemrgCarpUtils::DefineFibres(){
+    QString outPath = dir + mitk::IOUtil::GetDirectorySeparator() + bname+"_fibres.lon";
     std::ofstream fo(outPath.toStdString());
     fo << "2" << std::endl;
 
-    std::vector<double> epi_grad, apex_grad, lv_grad, rv_grad;
+    std::vector<double> epi_gradient, apex_gradient, lv_gradient, rv_gradient;
     for (int qx = 0; qx < nElem; qx++) {
         std::vector<int> elemIdx(4);
         for (int ix = 0; ix < 4; ix++) {
@@ -480,10 +473,12 @@ void CemrgCarpUtils::void DefineFibres(){
         double rv = DataCentre(rvPts, elemIdx);
         double epi = DataCentre(rvPts, elemIdx);
 
-        epi_grad = GradientAtElement(epiGrad, qx);
-        apex_grad = GradientAtElement(apexGrad, qx);
-        lv_grad = GradientAtElement(lvGrad, qx);
-        rv_grad = GradientAtElement(rvGrad, qx);
+        for (int jx = 0; jx < 3; jx++) {
+            epi_gradient[jx] = epiGrad[3*qx + jx];
+            apex_gradient[jx] = apexGrad[3*qx + jx];
+            lv_gradient[jx] = lvGrad[3*qx + jx];
+            rv_gradient[jx] = rvGrad[3*qx + jx];
+        }
 
         Quaternion epi_axis, lv_axis, rv_axis;
         if (epi >= tol){
@@ -766,17 +761,17 @@ void CemrgCarpUtils::RegionMapping(QString bpPath, QString pointPath, QString el
         MITK_INFO << ("Number of new regions determined: " + QString::number(newRegionCount)).toStdString();
 
         if ( min_i < 0 || min_j < 0 || min_k < 0 ) {
-            std::cerr << "WARNING: The elemCOG file falls outside the image bounds! Code assumes that no scar lies in this region.";
-            std::cerr << "If scar does lie in this region, then you need to pad the image at the start by (in pixel space):";
-            std::cerr << -min_i << " " << -min_j << " " -min_k;
-            std::cerr << "And add the following transformation to the TransMatFile (in geometric space):";
-            std::cerr << -min_i*spacing[0] << " " << -min_j*spacing[1] << " " << -min_k*spacing[2];
+            MITK_WARN << "The elemCOG file falls outside the image bounds! Code assumes that no scar lies in this region.";
+            std::cerr << "If scar does lie in this region, then you need to pad the image at the start by (in pixel space):"<< std::endl;
+            std::cerr << -min_i << " " << -min_j << " " -min_k<< std::endl;
+            std::cerr << "And add the following transformation to the TransMatFile (in geometric space):"<< std::endl;
+            std::cerr << -min_i*spacing[0] << " " << -min_j*spacing[1] << " " << -min_k*spacing[2]<< std::endl;
         }
         if ( max_i > int(size[0]-1) || max_j > int(size[1]-1) || max_k > int(size[2]-1) ) {
-            std::cerr << "WARNING: The elemCOG file falls outside the image bounds! Code assumes that no scar lies in this region.";
-            std::cerr << "If scar does lie in this region, then you need to pad the image at the end by (in pixel space):";
-            std::cerr << (max_i-(size[0]-1)) + " " + max_j-(size[1]-1)) + " " + max_k-(size[2]-1))).toStdString();
-            std::cerr << "No need to change TransMatFile";
+            MITK_WARN << "The elemCOG file falls outside the image bounds! Code assumes that no scar lies in this region.";
+            std::cerr << "If scar does lie in this region, then you need to pad the image at the end by (in pixel space):"<< std::endl;
+            std::cerr << max_i-(size[0]-1) << " " << max_j-(size[1]-1) << " " << max_k-(size[2]-1)<< std::endl;
+            std::cerr << "No need to change TransMatFile"<< std::endl;
         }
 
     } else{

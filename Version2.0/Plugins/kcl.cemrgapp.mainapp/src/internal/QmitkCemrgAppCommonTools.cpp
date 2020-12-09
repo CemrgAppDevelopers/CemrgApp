@@ -39,6 +39,7 @@ PURPOSE.  See the above copyright notices for more information.
 
 // CemrgAppModule
 #include <CemrgCommonUtils.h>
+#include <CemrgCarpUtils.h>
 #include "QmitkCemrgAppCommonTools.h"
 
 // Qt

@@ -48,11 +48,12 @@ typedef struct {
 } Quaternion;
 
 class MITKCEMRGAPPMODULE_EXPORT CemrgCarpUtils {
+    
 public:
     // basics
-    void CemrgCarpUtils();
+    CemrgCarpUtils();
 
-    inline void SetElementFilename(QSring elementPath){elemPath = elementPath; UpdateFileNames()};
+    inline void SetElementFilename(QString elementPath){elemPath = elementPath; UpdateFileNames();};
     void UpdateFileNames();
     void ReadElementFile(int nIter=0); // 0 = read whole file
     void ReadPointsFile();
@@ -74,10 +75,9 @@ public:
     inline int idx(int ix, int jx, int sz=3){return (sz*ix+jx);};
 
     double DataCentre(std::vector<double> fullDatVector, std::vector<int> elemIdx);
-    std::vector<double> GradientAtElement(std::vector<double> fullGradient, std::vector<int> index);
 
     // Fibres calculation functions
-    inline double QuaternionDot(const Quaternion a, const Quaternion b){return (a.s*b.s + a.i*b.i +a.j*b.j +a.k*b.k)};
+    inline double QuaternionDot(const Quaternion a, const Quaternion b){return (a.s*b.s + a.i*b.i +a.j*b.j +a.k*b.k);};
 
     Quaternion QuaternionMult(const Quaternion a, const Quaternion b);
     Quaternion QuaternionNormalise(const Quaternion q);

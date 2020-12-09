@@ -30,8 +30,7 @@ PURPOSE.  See the above copyright notices for more information.
 #include <vtkPointSource.h>
 #include <string>
 #include <sstream>
-#include <CemrgAtriaClipper.h>
-#include <CemrgScarAdvanced.h>
+#include <CemrgCarpUtils.h>
 #include <mitkUnstructuredGrid.h>
 #include <vtkUnstructuredGrid.h>
 #include <vtkUnstructuredGridReader.h>
